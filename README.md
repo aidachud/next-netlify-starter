@@ -88,3 +88,19 @@ And lastly if you’d like to remove Cypress entirely, delete the entire `cypres
 ```bash
 npm uninstall -S cypress
 ```
+
+## Python Team Highlighter
+
+This repository also includes a simple Python GUI script that scans swim meet PDFs and highlights all swimmers from a chosen team. To use it:
+
+1. Install Python 3 and the dependencies listed in `scripts/requirements.txt`:
+   ```bash
+   pip install -r scripts/requirements.txt
+   ```
+2. Run the script:
+   ```bash
+   python scripts/team_highlighter_gui.py
+   ```
+3. Select your heat sheet PDF, choose a team from the list, and a new PDF with yellow highlights will be created.
+
+
