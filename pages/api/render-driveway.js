@@ -43,7 +43,7 @@ const handler = async (req, res) => {
     return res.status(501).json({ error: 'LEONARDO_API_KEY is not configured.' })
   }
 
-  const { siteImageUrl, maskData, referenceStyleUrl, styleName, polygon } = req.body || {}
+  const { siteImageUrl, referenceStyleUrl, styleName, polygon } = req.body || {}
 
   if (!siteImageUrl) {
     return res.status(400).json({ error: 'siteImageUrl is required.' })
@@ -92,39 +92,12 @@ const handler = async (req, res) => {
       return res.status(502).json({ error: 'Leonardo returned no init image id.' })
     }
 
-    let maskInitImageId = null
-    if (maskData) {
-      const maskBuffer = decodeDataUrl(maskData)
-      if (maskBuffer) {
-        const maskForm = new FormData()
-        maskForm.append('init_image', new Blob([maskBuffer]), 'mask.png')
-        maskForm.append('extension', 'png')
-        const maskResponse = await fetch(`${LEONARDO_BASE_URL}/init-image`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${process.env.LEONARDO_API_KEY}`,
-          },
-          body: maskForm,
-        })
-        const maskPayload = await maskResponse.json()
-        maskInitImageId =
-          maskPayload?.uploadInitImage?.id ||
-          maskPayload?.init_image_id ||
-          maskPayload?.data?.id ||
-          null
-      }
-    }
-
     const generationPayloadBody = {
       prompt: buildRenderPrompt(styleName || 'driveway finish'),
       init_image_id: initImageId,
       init_strength: 0.35,
       num_images: 1,
       guidance_scale: 7,
-    }
-
-    if (maskInitImageId) {
-      generationPayloadBody.mask_init_image_id = maskInitImageId
     }
 
     const generationResponse = await fetch(`${LEONARDO_BASE_URL}/generations`, {
