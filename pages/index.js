@@ -3,6 +3,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 const finishes = [
   {
+    id: 'smooth',
+    name: 'Smooth Concrete',
+    description: 'Clean, solid surface inspired by modern concrete pours.',
+    tint: '#c9d0d6',
+    grain: 0.18,
+    pattern: 'smooth',
+  },
+  {
     id: 'exposed',
     name: 'Exposed Aggregate',
     description: 'Stone-forward sparkle with premium traction and depth.',
@@ -187,10 +195,35 @@ const createSlatePattern = (width, height) => {
   return canvas
 }
 
+const createSmoothPattern = (width, height) => {
+  const texture = document.createElement('canvas')
+  texture.width = 200
+  texture.height = 200
+  const ctx = texture.getContext('2d')
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.06)'
+  ctx.fillRect(0, 0, texture.width, texture.height)
+  for (let i = 0; i < 800; i += 1) {
+    const size = Math.random() * 1.6
+    const x = Math.random() * texture.width
+    const y = Math.random() * texture.height
+    ctx.fillStyle = `rgba(170, 180, 190, ${0.12 + Math.random() * 0.2})`
+    ctx.fillRect(x, y, size, size)
+  }
+  const pattern = ctx.createPattern(texture, 'repeat')
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const output = canvas.getContext('2d')
+  output.fillStyle = pattern
+  output.fillRect(0, 0, width, height)
+  return canvas
+}
+
 const createPatternCanvas = (pattern, width, height) => {
   if (pattern === 'aggregate') return createAggregatePattern(width, height)
   if (pattern === 'broom') return createBroomPattern(width, height)
   if (pattern === 'sand') return createSandPattern(width, height)
+  if (pattern === 'smooth') return createSmoothPattern(width, height)
   return createSlatePattern(width, height)
 }
 
@@ -198,7 +231,6 @@ export default function Home() {
   const canvasRef = useRef(null)
   const [uploadedImage, setUploadedImage] = useState('/sample-driveway.svg')
   const [selectedFinish, setSelectedFinish] = useState(finishes[0])
-  const [opacity, setOpacity] = useState(0.78)
   const [mask, setMask] = useState(maskDefaults)
   const [shapePreset, setShapePreset] = useState('standard')
   const [color, setColor] = useState(finishes[0].tint)
@@ -272,14 +304,14 @@ export default function Home() {
 
       context.clip()
 
-      context.globalAlpha = opacity
+      context.globalAlpha = 1
       context.fillStyle = color
-      context.globalCompositeOperation = 'multiply'
+      context.globalCompositeOperation = 'source-over'
       context.fillRect(0, 0, canvas.width, canvas.height)
 
       const patternCanvas = createPatternCanvas(selectedFinish.pattern, canvas.width, canvas.height)
-      context.globalCompositeOperation = 'overlay'
-      context.globalAlpha = 0.65
+      context.globalCompositeOperation = 'multiply'
+      context.globalAlpha = 0.9
       context.drawImage(patternCanvas, 0, 0)
 
       const grainCanvas = document.createElement('canvas')
@@ -297,15 +329,15 @@ export default function Home() {
       grainContext.putImageData(imageData, 0, 0)
 
       context.globalCompositeOperation = 'soft-light'
-      context.globalAlpha = 0.45
+      context.globalAlpha = 0.5
       context.drawImage(grainCanvas, 0, 0)
 
       const shadowGradient = context.createLinearGradient(0, topY, 0, bottomY)
-      shadowGradient.addColorStop(0, 'rgba(0, 0, 0, 0.05)')
-      shadowGradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.14)')
-      shadowGradient.addColorStop(1, 'rgba(0, 0, 0, 0.24)')
+      shadowGradient.addColorStop(0, 'rgba(0, 0, 0, 0.08)')
+      shadowGradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.18)')
+      shadowGradient.addColorStop(1, 'rgba(0, 0, 0, 0.28)')
       context.globalCompositeOperation = 'multiply'
-      context.globalAlpha = 0.75
+      context.globalAlpha = 0.85
       context.fillStyle = shadowGradient
       context.fillRect(0, 0, canvas.width, canvas.height)
 
@@ -348,16 +380,7 @@ export default function Home() {
       }
     }
     image.src = uploadedImage
-  }, [
-    uploadedImage,
-    selectedFinish,
-    opacity,
-    mask,
-    color,
-    thickness,
-    drivewayPoints,
-    isPolygonClosed,
-  ])
+  }, [uploadedImage, selectedFinish, mask, color, thickness, drivewayPoints, isPolygonClosed])
 
   const handleFile = (event) => {
     const file = event.target.files?.[0]
@@ -485,8 +508,7 @@ export default function Home() {
             <h2>Upload a driveway photo and preview finishes instantly.</h2>
             <p>
               Load a photo, click along the driveway edge to build a custom polygon, and close the
-              shape when you are done. Adjust finish thickness plus color for a more realistic
-              material match.
+              shape when you are done. The finish renders fully opaque to match real material.
             </p>
             <div className="workspace-hint">
               <strong>Tip:</strong> Click to add as many points as needed. Use “Close shape” to lock
@@ -547,6 +569,14 @@ export default function Home() {
                   </div>
                 )}
               </div>
+              <div className="canvas-actions">
+                <button className="preset-button" type="button" onClick={closePolygon}>
+                  Close shape
+                </button>
+                <button className="preset-button" type="button" onClick={clearPoints}>
+                  Reset points
+                </button>
+              </div>
               <div className="controls">
                 <div className="control-group">
                   <h4>Finish selection</h4>
@@ -583,21 +613,6 @@ export default function Home() {
                 </div>
 
                 <div className="control-group">
-                  <h4>Finish opacity</h4>
-                  <div className="range-row">
-                    <input
-                      type="range"
-                      min="0.3"
-                      max="0.95"
-                      step="0.01"
-                      value={opacity}
-                      onChange={(event) => setOpacity(Number(event.target.value))}
-                    />
-                    <span>{Math.round(opacity * 100)}%</span>
-                  </div>
-                </div>
-
-                <div className="control-group">
                   <h4>Driveway thickness</h4>
                   <div className="range-row">
                     <input
@@ -625,12 +640,6 @@ export default function Home() {
                         {preset.label}
                       </button>
                     ))}
-                    <button className="preset-button" type="button" onClick={closePolygon}>
-                      Close shape
-                    </button>
-                    <button className="preset-button" type="button" onClick={clearPoints}>
-                      Reset points
-                    </button>
                   </div>
                 </div>
 

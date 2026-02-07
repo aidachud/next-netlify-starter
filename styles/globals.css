@@ -368,6 +368,16 @@ p {
   cursor: crosshair;
 }
 
+.canvas-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.canvas-actions .preset-button {
+  padding: 0.45rem 1rem;
+}
+
 .canvas-placeholder {
   text-align: center;
   padding: 3rem;
@@ -416,6 +426,10 @@ p {
   height: 56px;
   border-radius: 14px;
   background: linear-gradient(135deg, #cbd5e1, #94a3b8);
+}
+
+.finish-card.smooth .finish-swatch {
+  background: linear-gradient(135deg, #d7dee5, #b9c3cd);
 }
 
 .finish-card.exposed .finish-swatch {
@@ -554,6 +568,10 @@ input[type='range'] {
   height: 70px;
   border-radius: 18px;
   background: linear-gradient(135deg, #cbd5e1, #94a3b8);
+}
+
+.design-card.smooth .design-swatch {
+  background: linear-gradient(135deg, #d7dee5, #b9c3cd);
 }
 
 .design-card.exposed .design-swatch {
