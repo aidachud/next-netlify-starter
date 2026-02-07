@@ -78,9 +78,6 @@ const referenceImage = '/reference-driveway.svg'
 export default function Home() {
   const canvasRef = useRef(null)
   const [uploadedImage, setUploadedImage] = useState('/sample-driveway.svg')
-  const [edgeFeather, setEdgeFeather] = useState(4)
-  const [drivewayPoints, setDrivewayPoints] = useState([])
-  const [isPolygonClosed, setIsPolygonClosed] = useState(false)
   const [renderedTexture, setRenderedTexture] = useState(null)
   const [isRendering, setIsRendering] = useState(false)
   const [renderStage, setRenderStage] = useState('')
@@ -96,9 +93,7 @@ export default function Home() {
       ? renderStage || 'Rendering with OpenAI...'
       : renderedTexture
         ? 'OpenAI render applied'
-        : isPolygonClosed
-          ? 'Polygon locked · ready to render'
-          : 'Click to add points · close the shape when ready'
+        : 'Upload a photo and render with the selected reference'
 
   useEffect(() => {
     setRenderedTexture(null)
@@ -116,50 +111,22 @@ export default function Home() {
     })
   }
 
-  const createMaskDataUrl = (canvas, points) => {
-    const maskCanvas = document.createElement('canvas')
-    maskCanvas.width = canvas.width
-    maskCanvas.height = canvas.height
-    const ctx = maskCanvas.getContext('2d')
-    ctx.fillStyle = 'black'
-    ctx.fillRect(0, 0, maskCanvas.width, maskCanvas.height)
-    ctx.fillStyle = 'white'
-    ctx.beginPath()
-    points.forEach((point, index) => {
-      if (index === 0) {
-        ctx.moveTo(point.x, point.y)
-      } else {
-        ctx.lineTo(point.x, point.y)
-      }
-    })
-    ctx.closePath()
-    ctx.fill()
-    return maskCanvas.toDataURL('image/png')
-  }
-
   const requestOpenAIRender = async () => {
     const canvas = canvasRef.current
-    if (!canvas || drivewayPoints.length < 3) return
+    if (!canvas) return
     setIsRendering(true)
     setRenderError('')
     setRenderStage('Sending to OpenAI...')
     try {
       const imageData = await getImageDataUrl(uploadedImage)
-      const maskData = createMaskDataUrl(canvas, drivewayPoints)
       const referenceData = selectedReference
         ? await getImageDataUrl(selectedReference)
         : null
-      const normalizedPoints = drivewayPoints.map((point) => [
-        point.x / canvas.width,
-        point.y / canvas.height,
-      ])
       const response = await fetch('/api/render-driveway', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           siteImageUrl: imageData,
-          maskData,
-          polygon: normalizedPoints,
           referenceImageUrl: referenceData,
           styleName: referenceLabel,
         }),
@@ -185,153 +152,29 @@ export default function Home() {
     }
 
     const context = canvas.getContext('2d')
-    const image = new Image()
-    image.onload = () => {
-      const drawBase = () => {
-        canvas.width = image.width
-        canvas.height = image.height
-        context.clearRect(0, 0, canvas.width, canvas.height)
-        context.drawImage(image, 0, 0, canvas.width, canvas.height)
-      }
+    const baseImage = new Image()
+    const renderImage = new Image()
 
-      drawBase()
-
-      const drawPolygonPath = (ctx) => {
-        drivewayPoints.forEach((point, index) => {
-          if (index === 0) {
-            ctx.moveTo(point.x, point.y)
-          } else {
-            ctx.lineTo(point.x, point.y)
-          }
-        })
-        ctx.closePath()
-      }
-
-      const drawOverlayTexture = (textureImage) => {
-        if (!textureImage) return
-        const finishCanvas = document.createElement('canvas')
-        finishCanvas.width = canvas.width
-        finishCanvas.height = canvas.height
-        const finishContext = finishCanvas.getContext('2d')
-
-        const pattern = finishContext.createPattern(textureImage, 'repeat')
-        finishContext.fillStyle = pattern || '#c9d0d6'
-        finishContext.fillRect(0, 0, finishCanvas.width, finishCanvas.height)
-
-        finishContext.globalCompositeOperation = 'multiply'
-        finishContext.globalAlpha = 0.65
-        finishContext.drawImage(image, 0, 0, finishCanvas.width, finishCanvas.height)
-
-        const grainCanvas = document.createElement('canvas')
-        grainCanvas.width = canvas.width
-        grainCanvas.height = canvas.height
-        const grainContext = grainCanvas.getContext('2d')
-        const imageData = grainContext.createImageData(canvas.width, canvas.height)
-        for (let i = 0; i < imageData.data.length; i += 4) {
-          const value = 175 + Math.random() * 70
-          imageData.data[i] = value
-          imageData.data[i + 1] = value
-          imageData.data[i + 2] = value
-          imageData.data[i + 3] = 255 * 0.15
-        }
-        grainContext.putImageData(imageData, 0, 0)
-        finishContext.globalCompositeOperation = 'soft-light'
-        finishContext.globalAlpha = 0.4
-        finishContext.drawImage(grainCanvas, 0, 0)
-
-        const maskCanvas = document.createElement('canvas')
-        maskCanvas.width = canvas.width
-        maskCanvas.height = canvas.height
-        const maskContext = maskCanvas.getContext('2d')
-        maskContext.fillStyle = 'black'
-        maskContext.fillRect(0, 0, maskCanvas.width, maskCanvas.height)
-        maskContext.fillStyle = 'white'
-        maskContext.beginPath()
-        drawPolygonPath(maskContext)
-        maskContext.fill()
-
-        const featherCanvas = document.createElement('canvas')
-        featherCanvas.width = canvas.width
-        featherCanvas.height = canvas.height
-        const featherContext = featherCanvas.getContext('2d')
-        featherContext.filter = `blur(${edgeFeather}px)`
-        featherContext.drawImage(maskCanvas, 0, 0)
-
-        finishContext.globalCompositeOperation = 'destination-in'
-        finishContext.globalAlpha = 1
-        finishContext.drawImage(featherCanvas, 0, 0)
-
-        context.drawImage(finishCanvas, 0, 0)
-      }
-
-      if (drivewayPoints.length >= 3 && isPolygonClosed) {
-        if (renderedTexture) {
-          const overlay = new Image()
-          overlay.onload = () => {
-            drawBase()
-            drawOverlayTexture(overlay)
-            context.globalCompositeOperation = 'source-over'
-            context.globalAlpha = 1
-            context.strokeStyle = 'rgba(255, 255, 255, 0.65)'
-            context.lineWidth = 2
-            context.setLineDash([10, 8])
-            context.beginPath()
-            drawPolygonPath(context)
-            context.stroke()
-            context.setLineDash([])
-          }
-          overlay.src = renderedTexture
-        } else {
-          drawBase()
-          context.globalCompositeOperation = 'source-over'
-          context.globalAlpha = 1
-          context.strokeStyle = 'rgba(255, 255, 255, 0.65)'
-          context.lineWidth = 2
-          context.setLineDash([10, 8])
-          context.beginPath()
-          drawPolygonPath(context)
-          context.stroke()
-          context.setLineDash([])
-        }
-      }
-
-      if (drivewayPoints.length > 0 && !isPolygonClosed) {
-        drivewayPoints.forEach((point, index) => {
-          context.beginPath()
-          context.fillStyle = 'rgba(255, 255, 255, 0.9)'
-          context.strokeStyle = 'rgba(12, 19, 36, 0.4)'
-          context.lineWidth = 2
-          context.arc(point.x, point.y, 8, 0, Math.PI * 2)
-          context.fill()
-          context.stroke()
-          context.fillStyle = 'rgba(12, 19, 36, 0.75)'
-          context.font = 'bold 20px Inter'
-          context.fillText(`${index + 1}`, point.x - 6, point.y + 6)
-        })
-      }
-
-      if (drivewayPoints.length > 1 && !isPolygonClosed) {
-        context.beginPath()
-        context.moveTo(drivewayPoints[0].x, drivewayPoints[0].y)
-        drivewayPoints.slice(1).forEach((point) => {
-          context.lineTo(point.x, point.y)
-        })
-        context.strokeStyle = 'rgba(12, 19, 36, 0.4)'
-        context.lineWidth = 2
-        context.setLineDash([8, 6])
-        context.stroke()
-        context.setLineDash([])
-      }
-
+    const draw = (image) => {
+      canvas.width = image.width
+      canvas.height = image.height
+      context.clearRect(0, 0, canvas.width, canvas.height)
+      context.drawImage(image, 0, 0, canvas.width, canvas.height)
     }
-    image.src = uploadedImage
-  }, [
-    uploadedImage,
-    edgeFeather,
-    drivewayPoints,
-    isPolygonClosed,
-    renderedTexture,
-  ])
+
+    baseImage.onload = () => {
+      if (!renderedTexture) {
+        draw(baseImage)
+      }
+    }
+
+    if (renderedTexture) {
+      renderImage.onload = () => draw(renderImage)
+      renderImage.src = renderedTexture
+    }
+
+    baseImage.src = uploadedImage
+  }, [uploadedImage, renderedTexture])
 
   const handleFile = (event) => {
     const file = event.target.files?.[0]
@@ -339,8 +182,6 @@ export default function Home() {
     const reader = new FileReader()
     reader.onload = (loadEvent) => {
       setUploadedImage(loadEvent.target.result)
-      setDrivewayPoints([])
-      setIsPolygonClosed(false)
       setRenderedTexture(null)
       setRenderError('')
     }
@@ -358,31 +199,6 @@ export default function Home() {
       setRenderedTexture(null)
     }
     reader.readAsDataURL(file)
-  }
-
-  const handleCanvasClick = (event) => {
-    const canvas = canvasRef.current
-    if (!canvas || isPolygonClosed) return
-    const rect = canvas.getBoundingClientRect()
-    const scaleX = canvas.width / rect.width
-    const scaleY = canvas.height / rect.height
-    const x = (event.clientX - rect.left) * scaleX
-    const y = (event.clientY - rect.top) * scaleY
-    setDrivewayPoints((prev) => [...prev, { x, y }])
-    setRenderedTexture(null)
-    setRenderError('')
-  }
-
-  const clearPoints = () => {
-    setDrivewayPoints([])
-    setIsPolygonClosed(false)
-    setRenderedTexture(null)
-    setRenderError('')
-  }
-
-  const closePolygon = () => {
-    if (drivewayPoints.length < 3) return
-    setIsPolygonClosed(true)
   }
 
   return (
@@ -465,13 +281,12 @@ export default function Home() {
             <p className="eyebrow">Rendering workspace</p>
             <h2>Upload a driveway photo and preview finishes instantly.</h2>
             <p>
-              Load a site photo and click along the driveway edge to build a custom polygon. Close
-              the shape, then render a photoreal finish that matches the reference driveway
-              material and blends into the original lighting.
+              Load a site photo, pick a reference driveway finish, and render a photoreal update
+              that keeps everything else in the scene intact.
             </p>
             <div className="workspace-hint">
-              <strong>Tip:</strong> Click to add as many points as needed. Use “Close shape” to lock
-              the surface, or “Reset points” to start over.
+              <strong>Tip:</strong> Choose a clean reference photo with the exact finish you want to
+              match.
             </div>
           </div>
             <div className="workspace-panel">
@@ -519,7 +334,7 @@ export default function Home() {
                 </div>
                 <div className="canvas-frame">
                   {hasImage ? (
-                    <canvas ref={canvasRef} className="render-canvas" onClick={handleCanvasClick} />
+                    <canvas ref={canvasRef} className="render-canvas" />
                   ) : (
                   <div className="canvas-placeholder">
                     <p>Load a driveway photo to see the finish preview.</p>
@@ -528,28 +343,12 @@ export default function Home() {
               </div>
               <div className="canvas-actions">
                 <button
-                  className="preset-button"
-                  type="button"
-                  onClick={closePolygon}
-                  disabled={isRendering || drivewayPoints.length < 3}
-                >
-                  Close shape
-                </button>
-                <button
                   className="primary-button render-button"
                   type="button"
                   onClick={requestOpenAIRender}
-                  disabled={isRendering || !isPolygonClosed}
-                >
-                  Render driveway
-                </button>
-                <button
-                  className="preset-button"
-                  type="button"
-                  onClick={clearPoints}
                   disabled={isRendering}
                 >
-                  Reset points
+                  Render driveway
                 </button>
               </div>
               {renderError ? <p className="render-error">{renderError}</p> : null}
@@ -595,18 +394,11 @@ export default function Home() {
                 </div>
 
                 <div className="control-group">
-                  <h4>Blend controls</h4>
-                  <div className="range-row">
-                    <input
-                      type="range"
-                      min="2"
-                      max="12"
-                      step="1"
-                      value={edgeFeather}
-                      onChange={(event) => setEdgeFeather(Number(event.target.value))}
-                    />
-                    <span>{edgeFeather} px feather</span>
-                  </div>
+                  <h4>Render guidance</h4>
+                  <p className="finish-description">
+                    The AI keeps the uploaded photo intact and applies the reference driveway style
+                    across the scene.
+                  </p>
                 </div>
               </div>
             </div>

@@ -7,7 +7,7 @@ export const config = {
 }
 
 const buildRenderPrompt = (styleName) =>
-  `Photorealistic concrete driveway finish based on reference ${styleName}. Match the color, smoothness, subtle mottling, and border detail. Preserve the surrounding environment and lighting.`
+  `Photorealistic edit. Keep everything in the original photo the same, but add a driveway in the style of ${styleName}. Match the reference color, smoothness, subtle mottling, joints, and border detail. Preserve the surrounding environment, perspective, and lighting.`
 
 const decodeDataUrl = (dataUrl) => {
   if (!dataUrl) return null
@@ -50,29 +50,16 @@ const handler = async (req, res) => {
     return res.status(501).json({ error: 'OPENAI_API_KEY is not configured.' })
   }
 
-  const { siteImageUrl, maskData, referenceImageUrl, styleName, polygon } = req.body || {}
+  const { siteImageUrl, referenceImageUrl, styleName } = req.body || {}
 
   if (!siteImageUrl) {
     return res.status(400).json({ error: 'siteImageUrl is required.' })
-  }
-
-  if (!maskData) {
-    return res.status(400).json({ error: 'maskData is required.' })
-  }
-
-  if (!Array.isArray(polygon) || polygon.length < 3) {
-    return res.status(400).json({ error: 'polygon with at least 3 points is required.' })
   }
 
   try {
     const imageBuffer = decodeDataUrl(siteImageUrl)
     if (!imageBuffer) {
       return res.status(400).json({ error: 'siteImageUrl must be a data URL.' })
-    }
-
-    const maskBuffer = decodeDataUrl(maskData)
-    if (!maskBuffer) {
-      return res.status(400).json({ error: 'maskData must be a data URL.' })
     }
 
     let referenceNotes = ''
@@ -120,7 +107,6 @@ const handler = async (req, res) => {
     formData.append('model', process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1')
     formData.append('prompt', `${buildRenderPrompt(styleName || 'driveway finish')}${promptDetails}`)
     formData.append('image', new Blob([imageBuffer], { type: 'image/png' }), 'driveway.png')
-    formData.append('mask', new Blob([maskBuffer], { type: 'image/png' }), 'mask.png')
 
     const editResponse = await fetch('https://api.openai.com/v1/images/edits', {
       method: 'POST',
