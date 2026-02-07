@@ -1,5 +1,5 @@
 import Head from 'next/head'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const finishes = [
   {
@@ -73,208 +73,60 @@ const stats = [
   { label: 'Approval speed', value: '2.8x faster' },
 ]
 
-const maskDefaults = {
-  topWidth: 40,
-  bottomWidth: 82,
-  topOffset: 18,
-  bottomOffset: 92,
-  curvature: 24,
-}
-
-const shapePresets = [
-  { id: 'standard', label: 'Standard', settings: maskDefaults },
+const styleReferences = [
   {
-    id: 'narrow',
-    label: 'Narrow',
-    settings: { topWidth: 32, bottomWidth: 72, topOffset: 22, bottomOffset: 92, curvature: 18 },
+    id: 'modern-smooth',
+    name: 'Modern Smooth Concrete',
+    description: 'Cool grey tone with subtle mottling and tight joints.',
+    image: '/style-modern-smooth.svg',
   },
   {
-    id: 'wide',
-    label: 'Wide',
-    settings: { topWidth: 48, bottomWidth: 92, topOffset: 16, bottomOffset: 94, curvature: 28 },
+    id: 'light-stone',
+    name: 'Light Stone Concrete',
+    description: 'Warm light concrete with refined speckling.',
+    image: '/style-light-stone.svg',
   },
   {
-    id: 'curved',
-    label: 'Curved',
-    settings: { topWidth: 38, bottomWidth: 78, topOffset: 20, bottomOffset: 92, curvature: 42 },
+    id: 'exposed-aggregate',
+    name: 'Exposed Aggregate Border',
+    description: 'Aggregate sparkle with a darker perimeter.',
+    image: '/style-exposed-aggregate.svg',
   },
 ]
-
-const createAggregatePattern = (width, height) => {
-  const texture = document.createElement('canvas')
-  texture.width = 240
-  texture.height = 240
-  const ctx = texture.getContext('2d')
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.12)'
-  ctx.fillRect(0, 0, texture.width, texture.height)
-
-  const stones = 190
-  for (let i = 0; i < stones; i += 1) {
-    const radius = 2 + Math.random() * 7
-    const x = Math.random() * texture.width
-    const y = Math.random() * texture.height
-    const shade = 140 + Math.random() * 90
-    ctx.fillStyle = `rgba(${shade}, ${shade - 12}, ${shade - 25}, 0.55)`
-    ctx.beginPath()
-    ctx.arc(x, y, radius, 0, Math.PI * 2)
-    ctx.fill()
-  }
-
-  const pattern = ctx.createPattern(texture, 'repeat')
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-  const output = canvas.getContext('2d')
-  output.fillStyle = pattern
-  output.fillRect(0, 0, width, height)
-  return canvas
-}
-
-const createBroomPattern = (width, height) => {
-  const texture = document.createElement('canvas')
-  texture.width = 240
-  texture.height = 240
-  const ctx = texture.getContext('2d')
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.08)'
-  ctx.fillRect(0, 0, texture.width, texture.height)
-  ctx.strokeStyle = 'rgba(120, 120, 120, 0.35)'
-  ctx.lineWidth = 2
-  for (let i = 0; i < texture.width; i += 10) {
-    ctx.beginPath()
-    ctx.moveTo(i, 0)
-    ctx.lineTo(i, texture.height)
-    ctx.stroke()
-  }
-  const pattern = ctx.createPattern(texture, 'repeat')
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-  const output = canvas.getContext('2d')
-  output.fillStyle = pattern
-  output.fillRect(0, 0, width, height)
-  return canvas
-}
-
-const createSandPattern = (width, height) => {
-  const texture = document.createElement('canvas')
-  texture.width = 200
-  texture.height = 200
-  const ctx = texture.getContext('2d')
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.08)'
-  ctx.fillRect(0, 0, texture.width, texture.height)
-  for (let i = 0; i < 1600; i += 1) {
-    const size = Math.random() * 2
-    const x = Math.random() * texture.width
-    const y = Math.random() * texture.height
-    ctx.fillStyle = `rgba(160, 150, 135, ${0.2 + Math.random() * 0.3})`
-    ctx.fillRect(x, y, size, size)
-  }
-  const pattern = ctx.createPattern(texture, 'repeat')
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-  const output = canvas.getContext('2d')
-  output.fillStyle = pattern
-  output.fillRect(0, 0, width, height)
-  return canvas
-}
-
-const createSlatePattern = (width, height) => {
-  const texture = document.createElement('canvas')
-  texture.width = 260
-  texture.height = 260
-  const ctx = texture.getContext('2d')
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.08)'
-  ctx.fillRect(0, 0, texture.width, texture.height)
-  ctx.strokeStyle = 'rgba(120, 130, 145, 0.45)'
-  ctx.lineWidth = 2
-  for (let x = 0; x < texture.width; x += 65) {
-    for (let y = 0; y < texture.height; y += 65) {
-      ctx.strokeRect(x + 2, y + 2, 60, 60)
-    }
-  }
-  const pattern = ctx.createPattern(texture, 'repeat')
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-  const output = canvas.getContext('2d')
-  output.fillStyle = pattern
-  output.fillRect(0, 0, width, height)
-  return canvas
-}
-
-const createSmoothPattern = (width, height) => {
-  const texture = document.createElement('canvas')
-  texture.width = 240
-  texture.height = 240
-  const ctx = texture.getContext('2d')
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.08)'
-  ctx.fillRect(0, 0, texture.width, texture.height)
-  for (let i = 0; i < 1200; i += 1) {
-    const size = Math.random() * 1.8
-    const x = Math.random() * texture.width
-    const y = Math.random() * texture.height
-    const shade = 185 + Math.random() * 40
-    ctx.fillStyle = `rgba(${shade}, ${shade + 8}, ${shade + 14}, ${0.18 + Math.random() * 0.2})`
-    ctx.fillRect(x, y, size, size)
-  }
-  const pattern = ctx.createPattern(texture, 'repeat')
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-  const output = canvas.getContext('2d')
-  output.fillStyle = pattern
-  output.fillRect(0, 0, width, height)
-  return canvas
-}
-
-const createPatternCanvas = (pattern, width, height) => {
-  if (pattern === 'aggregate') return createAggregatePattern(width, height)
-  if (pattern === 'broom') return createBroomPattern(width, height)
-  if (pattern === 'sand') return createSandPattern(width, height)
-  if (pattern === 'smooth') return createSmoothPattern(width, height)
-  return createSlatePattern(width, height)
-}
 
 export default function Home() {
   const canvasRef = useRef(null)
   const [uploadedImage, setUploadedImage] = useState('/sample-driveway.svg')
-  const [selectedFinish, setSelectedFinish] = useState(finishes[0])
-  const [mask, setMask] = useState(maskDefaults)
-  const [shapePreset, setShapePreset] = useState('standard')
-  const [color, setColor] = useState(finishes[0].tint)
-  const [thickness, setThickness] = useState(6)
+  const [edgeFeather, setEdgeFeather] = useState(4)
   const [drivewayPoints, setDrivewayPoints] = useState([])
   const [isPolygonClosed, setIsPolygonClosed] = useState(false)
-  const [renderedImage, setRenderedImage] = useState(null)
+  const [renderedTexture, setRenderedTexture] = useState(null)
   const [isRendering, setIsRendering] = useState(false)
+  const [renderStage, setRenderStage] = useState('')
   const [renderError, setRenderError] = useState('')
+  const [referenceStyle, setReferenceStyle] = useState(styleReferences[0])
+  const [referenceImage, setReferenceImage] = useState(styleReferences[0].image)
+  const [styleProfile, setStyleProfile] = useState(null)
 
   const hasImage = Boolean(uploadedImage)
 
-  const finishOptions = useMemo(() => finishes, [])
-
   const statusMessage = !hasImage
     ? 'Upload a photo to begin'
-    : isRendering
-      ? 'Rendering with Z.ai...'
-      : isPolygonClosed
-        ? renderedImage
+    : !referenceImage
+      ? 'Select a reference driveway style'
+      : isRendering
+        ? renderStage || 'Rendering with Z.ai...'
+        : renderedTexture
           ? 'Z.ai render applied'
-          : 'Polygon locked · finish applied'
-        : 'Click to add points · close the shape when ready'
+          : isPolygonClosed
+            ? 'Polygon locked · ready to render'
+            : 'Click to add points · close the shape when ready'
 
   useEffect(() => {
-    setColor(selectedFinish.tint)
-  }, [selectedFinish])
-
-  useEffect(() => {
-    setRenderedImage(null)
+    setRenderedTexture(null)
+    setStyleProfile(null)
     setRenderError('')
-  }, [selectedFinish, color, uploadedImage])
-
-  const buildPrompt = () =>
-    `Photorealistic ${selectedFinish.name} concrete driveway surface. ${selectedFinish.description} Preserve the surrounding landscape and lighting.`
+  }, [uploadedImage, referenceImage])
 
   const getImageDataUrl = async (source) => {
     if (source.startsWith('data:')) return source
@@ -287,54 +139,45 @@ export default function Home() {
     })
   }
 
-  const createMaskDataUrl = (canvas, points) => {
-    const maskCanvas = document.createElement('canvas')
-    maskCanvas.width = canvas.width
-    maskCanvas.height = canvas.height
-    const ctx = maskCanvas.getContext('2d')
-    ctx.fillStyle = 'black'
-    ctx.fillRect(0, 0, maskCanvas.width, maskCanvas.height)
-    ctx.fillStyle = 'white'
-    ctx.beginPath()
-    points.forEach((point, index) => {
-      if (index === 0) {
-        ctx.moveTo(point.x, point.y)
-      } else {
-        ctx.lineTo(point.x, point.y)
-      }
-    })
-    ctx.closePath()
-    ctx.fill()
-    return maskCanvas.toDataURL('image/png')
-  }
-
   const requestZaiRender = async () => {
     const canvas = canvasRef.current
     if (!canvas || drivewayPoints.length < 3) return
+    if (!referenceImage) {
+      setRenderError('Select a reference driveway style before rendering.')
+      return
+    }
     setIsRendering(true)
     setRenderError('')
+    setRenderStage('Analyzing style...')
     try {
       const imageData = await getImageDataUrl(uploadedImage)
-      const maskData = createMaskDataUrl(canvas, drivewayPoints)
-      const response = await fetch('/api/zai-render', {
+      const referenceData = await getImageDataUrl(referenceImage)
+      const normalizedPoints = drivewayPoints.map((point) => [
+        point.x / canvas.width,
+        point.y / canvas.height,
+      ])
+      const response = await fetch('/api/render-driveway', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          imageData,
-          maskData,
-          prompt: buildPrompt(),
-          size: `${canvas.width}x${canvas.height}`,
+          siteImageUrl: imageData,
+          polygon: normalizedPoints,
+          referenceStyleUrl: referenceData,
+          styleName: referenceStyle?.name || 'Driveway Style',
         }),
       })
       const payload = await response.json()
       if (!response.ok) {
         throw new Error(payload.error || 'Z.ai render failed.')
       }
-      setRenderedImage(payload.image)
+      setRenderStage('Generating finish...')
+      setRenderedTexture(payload.textureImage)
+      setStyleProfile(payload.styleProfile || null)
     } catch (error) {
       setRenderError(error.message)
     } finally {
       setIsRendering(false)
+      setRenderStage('')
     }
   }
 
@@ -356,42 +199,31 @@ export default function Home() {
 
       drawBase()
 
-      const topWidth = (mask.topWidth / 100) * canvas.width
-      const bottomWidth = (mask.bottomWidth / 100) * canvas.width
-      const topY = (mask.topOffset / 100) * canvas.height
-      const bottomY = (mask.bottomOffset / 100) * canvas.height
-      const curveDepth = (mask.curvature / 100) * canvas.height
-      const centerX = canvas.width / 2
-
-      const applyFinish = (overlayImage) => {
-        if (overlayImage) {
-          context.globalCompositeOperation = 'source-over'
-          context.globalAlpha = 1
-          context.drawImage(overlayImage, 0, 0, canvas.width, canvas.height)
-          return
-        }
-
-        context.save()
-        context.beginPath()
+      const drawPolygonPath = (ctx) => {
         drivewayPoints.forEach((point, index) => {
           if (index === 0) {
-            context.moveTo(point.x, point.y)
+            ctx.moveTo(point.x, point.y)
           } else {
-            context.lineTo(point.x, point.y)
+            ctx.lineTo(point.x, point.y)
           }
         })
-        context.closePath()
-        context.clip()
+        ctx.closePath()
+      }
 
-        context.globalAlpha = 1
-        context.fillStyle = color
-        context.globalCompositeOperation = 'source-over'
-        context.fillRect(0, 0, canvas.width, canvas.height)
+      const drawOverlayTexture = (textureImage) => {
+        if (!textureImage) return
+        const finishCanvas = document.createElement('canvas')
+        finishCanvas.width = canvas.width
+        finishCanvas.height = canvas.height
+        const finishContext = finishCanvas.getContext('2d')
 
-        const patternCanvas = createPatternCanvas(selectedFinish.pattern, canvas.width, canvas.height)
-        context.globalCompositeOperation = 'multiply'
-        context.globalAlpha = 0.9
-        context.drawImage(patternCanvas, 0, 0)
+        const pattern = finishContext.createPattern(textureImage, 'repeat')
+        finishContext.fillStyle = pattern || styleProfile?.base_color || '#c9d0d6'
+        finishContext.fillRect(0, 0, finishCanvas.width, finishCanvas.height)
+
+        finishContext.globalCompositeOperation = 'multiply'
+        finishContext.globalAlpha = 0.65
+        finishContext.drawImage(image, 0, 0, finishCanvas.width, finishCanvas.height)
 
         const grainCanvas = document.createElement('canvas')
         grainCanvas.width = canvas.width
@@ -399,68 +231,70 @@ export default function Home() {
         const grainContext = grainCanvas.getContext('2d')
         const imageData = grainContext.createImageData(canvas.width, canvas.height)
         for (let i = 0; i < imageData.data.length; i += 4) {
-          const value = 175 + Math.random() * 75
+          const value = 175 + Math.random() * 70
           imageData.data[i] = value
           imageData.data[i + 1] = value
           imageData.data[i + 2] = value
-          imageData.data[i + 3] = 255 * selectedFinish.grain
+          imageData.data[i + 3] = 255 * 0.15
         }
         grainContext.putImageData(imageData, 0, 0)
+        finishContext.globalCompositeOperation = 'soft-light'
+        finishContext.globalAlpha = 0.4
+        finishContext.drawImage(grainCanvas, 0, 0)
 
-        context.globalCompositeOperation = 'soft-light'
-        context.globalAlpha = 0.5
-        context.drawImage(grainCanvas, 0, 0)
+        const maskCanvas = document.createElement('canvas')
+        maskCanvas.width = canvas.width
+        maskCanvas.height = canvas.height
+        const maskContext = maskCanvas.getContext('2d')
+        maskContext.fillStyle = 'black'
+        maskContext.fillRect(0, 0, maskCanvas.width, maskCanvas.height)
+        maskContext.fillStyle = 'white'
+        maskContext.beginPath()
+        drawPolygonPath(maskContext)
+        maskContext.fill()
 
-        const shadowGradient = context.createLinearGradient(0, topY, 0, bottomY)
-        shadowGradient.addColorStop(0, 'rgba(0, 0, 0, 0.08)')
-        shadowGradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.18)')
-        shadowGradient.addColorStop(1, 'rgba(0, 0, 0, 0.28)')
-        context.globalCompositeOperation = 'multiply'
-        context.globalAlpha = 0.85
-        context.fillStyle = shadowGradient
-        context.fillRect(0, 0, canvas.width, canvas.height)
+        const featherCanvas = document.createElement('canvas')
+        featherCanvas.width = canvas.width
+        featherCanvas.height = canvas.height
+        const featherContext = featherCanvas.getContext('2d')
+        featherContext.filter = `blur(${edgeFeather}px)`
+        featherContext.drawImage(maskCanvas, 0, 0)
 
-        context.restore()
+        finishContext.globalCompositeOperation = 'destination-in'
+        finishContext.globalAlpha = 1
+        finishContext.drawImage(featherCanvas, 0, 0)
 
-        context.globalCompositeOperation = 'source-over'
-        context.globalAlpha = 1
-        context.strokeStyle = 'rgba(255, 255, 255, 0.65)'
-        context.lineWidth = thickness
-        context.setLineDash([14, 10])
-        context.stroke()
-        context.setLineDash([])
+        context.drawImage(finishCanvas, 0, 0)
       }
 
       if (drivewayPoints.length >= 3 && isPolygonClosed) {
-        if (renderedImage) {
+        if (renderedTexture) {
           const overlay = new Image()
           overlay.onload = () => {
             drawBase()
-            context.save()
-            context.beginPath()
-            drivewayPoints.forEach((point, index) => {
-              if (index === 0) {
-                context.moveTo(point.x, point.y)
-              } else {
-                context.lineTo(point.x, point.y)
-              }
-            })
-            context.closePath()
-            context.clip()
-            applyFinish(overlay)
-            context.restore()
-
+            drawOverlayTexture(overlay)
             context.globalCompositeOperation = 'source-over'
             context.globalAlpha = 1
             context.strokeStyle = 'rgba(255, 255, 255, 0.65)'
-            context.lineWidth = thickness
-            context.setLineDash([14, 10])
+            context.lineWidth = 2
+            context.setLineDash([10, 8])
+            context.beginPath()
+            drawPolygonPath(context)
             context.stroke()
             context.setLineDash([])
           }
-          overlay.src = renderedImage
+          overlay.src = renderedTexture
         } else {
-          applyFinish()
+          drawBase()
+          context.globalCompositeOperation = 'source-over'
+          context.globalAlpha = 1
+          context.strokeStyle = 'rgba(255, 255, 255, 0.65)'
+          context.lineWidth = 2
+          context.setLineDash([10, 8])
+          context.beginPath()
+          drawPolygonPath(context)
+          context.stroke()
+          context.setLineDash([])
         }
       }
 
@@ -492,45 +326,15 @@ export default function Home() {
         context.setLineDash([])
       }
 
-      if (drivewayPoints.length < 3 || !isPolygonClosed) {
-        context.beginPath()
-        context.moveTo(centerX - topWidth / 2, topY)
-        context.lineTo(centerX + topWidth / 2, topY)
-        context.bezierCurveTo(
-          centerX + bottomWidth / 2 + curveDepth * 0.2,
-          topY + (bottomY - topY) * 0.35,
-          centerX + bottomWidth / 2 + curveDepth * 0.2,
-          bottomY - curveDepth * 0.2,
-          centerX + bottomWidth / 2,
-          bottomY
-        )
-        context.lineTo(centerX - bottomWidth / 2, bottomY)
-        context.bezierCurveTo(
-          centerX - bottomWidth / 2 - curveDepth * 0.2,
-          bottomY - curveDepth * 0.2,
-          centerX - bottomWidth / 2 - curveDepth * 0.2,
-          topY + (bottomY - topY) * 0.35,
-          centerX - topWidth / 2,
-          topY
-        )
-        context.closePath()
-        context.strokeStyle = 'rgba(12, 19, 36, 0.08)'
-        context.lineWidth = 2
-        context.setLineDash([6, 6])
-        context.stroke()
-        context.setLineDash([])
-      }
     }
     image.src = uploadedImage
   }, [
     uploadedImage,
-    selectedFinish,
-    mask,
-    color,
-    thickness,
+    edgeFeather,
     drivewayPoints,
     isPolygonClosed,
-    renderedImage,
+    renderedTexture,
+    styleProfile,
   ])
 
   const handleFile = (event) => {
@@ -541,24 +345,37 @@ export default function Home() {
       setUploadedImage(loadEvent.target.result)
       setDrivewayPoints([])
       setIsPolygonClosed(false)
-      setRenderedImage(null)
+      setRenderedTexture(null)
+      setStyleProfile(null)
       setRenderError('')
     }
     reader.readAsDataURL(file)
   }
 
-  const handlePresetChange = (preset) => {
-    setShapePreset(preset.id)
-    setMask(preset.settings)
-    setDrivewayPoints([])
-    setIsPolygonClosed(false)
-    setRenderedImage(null)
-    setRenderError('')
+  const handleReferenceFile = (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (loadEvent) => {
+      setReferenceImage(loadEvent.target.result)
+      setReferenceStyle({
+        id: 'custom',
+        name: file.name,
+        description: 'Custom reference style',
+      })
+      setRenderedTexture(null)
+      setStyleProfile(null)
+      setRenderError('')
+    }
+    reader.readAsDataURL(file)
   }
 
-  const handleMaskChange = (key) => (event) => {
-    const value = Number(event.target.value)
-    setMask((prev) => ({ ...prev, [key]: value }))
+  const handleReferenceSelect = (reference) => {
+    setReferenceStyle(reference)
+    setReferenceImage(reference.image)
+    setRenderedTexture(null)
+    setStyleProfile(null)
+    setRenderError('')
   }
 
   const handleCanvasClick = (event) => {
@@ -570,21 +387,21 @@ export default function Home() {
     const x = (event.clientX - rect.left) * scaleX
     const y = (event.clientY - rect.top) * scaleY
     setDrivewayPoints((prev) => [...prev, { x, y }])
-    setRenderedImage(null)
+    setRenderedTexture(null)
     setRenderError('')
   }
 
   const clearPoints = () => {
     setDrivewayPoints([])
     setIsPolygonClosed(false)
-    setRenderedImage(null)
+    setRenderedTexture(null)
+    setStyleProfile(null)
     setRenderError('')
   }
 
   const closePolygon = () => {
     if (drivewayPoints.length < 3) return
     setIsPolygonClosed(true)
-    requestZaiRender()
   }
 
   return (
@@ -667,16 +484,17 @@ export default function Home() {
             <p className="eyebrow">Rendering workspace</p>
             <h2>Upload a driveway photo and preview finishes instantly.</h2>
             <p>
-              Load a photo, click along the driveway edge to build a custom polygon, and close the
-              shape when you are done. The finish renders fully opaque to match real material.
+              Load a site photo, choose a reference driveway style, and click along the driveway
+              edge to build a custom polygon. Close the shape, then render a photoreal finish that
+              blends into the original lighting.
             </p>
             <div className="workspace-hint">
               <strong>Tip:</strong> Click to add as many points as needed. Use “Close shape” to lock
               the surface, or “Reset points” to start over.
             </div>
           </div>
-          <div className="workspace-panel">
-            <div className="upload-card">
+            <div className="workspace-panel">
+              <div className="upload-card">
               <div className="upload-dropzone">
                 <div className="upload-icon" />
                 <div>
@@ -710,18 +528,18 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="renderer">
-              <div className="renderer-header">
-                <div>
-                  <h3>Live Render</h3>
-                  <p>{statusMessage}</p>
+              <div className="renderer">
+                <div className="renderer-header">
+                  <div>
+                    <h3>Live Render</h3>
+                    <p>{statusMessage}</p>
+                  </div>
+                  <div className="finish-pill">{referenceStyle?.name || 'Reference style'}</div>
                 </div>
-                <div className="finish-pill">{selectedFinish.name}</div>
-              </div>
-              <div className="canvas-frame">
-                {hasImage ? (
-                  <canvas ref={canvasRef} className="render-canvas" onClick={handleCanvasClick} />
-                ) : (
+                <div className="canvas-frame">
+                  {hasImage ? (
+                    <canvas ref={canvasRef} className="render-canvas" onClick={handleCanvasClick} />
+                  ) : (
                   <div className="canvas-placeholder">
                     <p>Load a driveway photo to see the finish preview.</p>
                   </div>
@@ -732,9 +550,17 @@ export default function Home() {
                   className="preset-button"
                   type="button"
                   onClick={closePolygon}
-                  disabled={isRendering}
+                  disabled={isRendering || drivewayPoints.length < 3}
                 >
                   Close shape
+                </button>
+                <button
+                  className="primary-button render-button"
+                  type="button"
+                  onClick={requestZaiRender}
+                  disabled={isRendering || !isPolygonClosed || !referenceImage}
+                >
+                  Render driveway
                 </button>
                 <button
                   className="preset-button"
@@ -748,124 +574,83 @@ export default function Home() {
               {renderError ? <p className="render-error">{renderError}</p> : null}
               <div className="controls">
                 <div className="control-group">
-                  <h4>Finish selection</h4>
-                  <div className="finish-grid">
-                    {finishOptions.map((finish) => (
+                  <h4>Reference driveway styles</h4>
+                  <div className="reference-grid">
+                    {styleReferences.map((reference) => (
                       <button
-                        key={finish.id}
+                        key={reference.id}
                         type="button"
-                        className={`finish-card ${finish.id} ${
-                          selectedFinish.id === finish.id ? 'active' : ''
+                        className={`reference-card ${
+                          referenceStyle?.id === reference.id ? 'active' : ''
                         }`}
-                        onClick={() => setSelectedFinish(finish)}
+                        onClick={() => handleReferenceSelect(reference)}
                       >
-                        <div className="finish-swatch" />
+                        <div
+                          className="reference-preview"
+                          style={{ backgroundImage: `url(${reference.image})` }}
+                        />
                         <div>
-                          <p className="finish-title">{finish.name}</p>
-                          <p className="finish-description">{finish.description}</p>
+                          <p className="finish-title">{reference.name}</p>
+                          <p className="finish-description">{reference.description}</p>
                         </div>
                       </button>
                     ))}
                   </div>
-                </div>
-
-                <div className="control-group">
-                  <h4>Finish color</h4>
-                  <div className="color-row">
+                  <div className="upload-actions reference-actions">
+                    <label className="primary-button" htmlFor="reference-upload">
+                      Upload reference
+                    </label>
                     <input
-                      type="color"
-                      value={color}
-                      onChange={(event) => setColor(event.target.value)}
+                      id="reference-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleReferenceFile}
+                      hidden
                     />
-                    <span>{color.toUpperCase()}</span>
+                    {referenceImage ? (
+                      <span className="reference-chip">Style loaded</span>
+                    ) : (
+                      <span className="reference-chip">No style selected</span>
+                    )}
                   </div>
                 </div>
 
                 <div className="control-group">
-                  <h4>Driveway thickness</h4>
+                  <h4>Blend controls</h4>
                   <div className="range-row">
                     <input
                       type="range"
                       min="2"
                       max="12"
                       step="1"
-                      value={thickness}
-                      onChange={(event) => setThickness(Number(event.target.value))}
+                      value={edgeFeather}
+                      onChange={(event) => setEdgeFeather(Number(event.target.value))}
                     />
-                    <span>{thickness} px</span>
+                    <span>{edgeFeather} px feather</span>
                   </div>
-                </div>
-
-                <div className="control-group">
-                  <h4>Driveway shape presets</h4>
-                  <div className="preset-grid">
-                    {shapePresets.map((preset) => (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        className={`preset-button ${shapePreset === preset.id ? 'active' : ''}`}
-                        onClick={() => handlePresetChange(preset)}
-                      >
-                        {preset.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="control-group">
-                  <h4>Driveway mask</h4>
-                  <div className="range-grid">
-                    <label>
-                      Top width
-                      <input
-                        type="range"
-                        min="20"
-                        max="70"
-                        value={mask.topWidth}
-                        onChange={handleMaskChange('topWidth')}
-                      />
-                    </label>
-                    <label>
-                      Bottom width
-                      <input
-                        type="range"
-                        min="50"
-                        max="100"
-                        value={mask.bottomWidth}
-                        onChange={handleMaskChange('bottomWidth')}
-                      />
-                    </label>
-                    <label>
-                      Top offset
-                      <input
-                        type="range"
-                        min="5"
-                        max="50"
-                        value={mask.topOffset}
-                        onChange={handleMaskChange('topOffset')}
-                      />
-                    </label>
-                    <label>
-                      Bottom offset
-                      <input
-                        type="range"
-                        min="60"
-                        max="98"
-                        value={mask.bottomOffset}
-                        onChange={handleMaskChange('bottomOffset')}
-                      />
-                    </label>
-                    <label>
-                      Curvature
-                      <input
-                        type="range"
-                        min="10"
-                        max="60"
-                        value={mask.curvature}
-                        onChange={handleMaskChange('curvature')}
-                      />
-                    </label>
-                  </div>
+                  {styleProfile ? (
+                    <div className="style-profile">
+                      <p className="profile-title">Style profile</p>
+                      <div className="profile-grid">
+                        <div>
+                          <span>Base color</span>
+                          <strong>{styleProfile.base_color}</strong>
+                        </div>
+                        <div>
+                          <span>Warmth</span>
+                          <strong>{styleProfile.warmth}</strong>
+                        </div>
+                        <div>
+                          <span>Texture</span>
+                          <strong>{styleProfile.texture_strength}</strong>
+                        </div>
+                        <div>
+                          <span>Joints</span>
+                          <strong>{styleProfile.joint_visibility}</strong>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>

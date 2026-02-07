@@ -374,6 +374,10 @@ p {
   justify-content: flex-end;
 }
 
+.render-button {
+  padding-inline: 1.6rem;
+}
+
 .canvas-actions .preset-button {
   padding: 0.45rem 1rem;
 }
@@ -405,14 +409,14 @@ p {
   gap: 1rem;
 }
 
-.finish-grid {
+.reference-grid {
   display: grid;
   gap: 1rem;
 }
 
-.finish-card {
+.reference-card {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: 100px 1fr;
   gap: 1rem;
   padding: 1rem;
   border-radius: 16px;
@@ -423,40 +427,62 @@ p {
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
-.finish-card:hover {
+.reference-card:hover {
   transform: translateY(-2px);
 }
 
-.finish-card.active {
+.reference-card.active {
   border-color: rgba(201, 145, 95, 0.9);
   box-shadow: 0 15px 30px rgba(201, 145, 95, 0.25);
 }
 
-.finish-swatch {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #cbd5e1, #94a3b8);
+.reference-preview {
+  width: 100%;
+  height: 74px;
+  border-radius: 12px;
+  background-size: cover;
+  background-position: center;
+  border: 1px solid rgba(15, 23, 42, 0.08);
 }
 
-.finish-card.light-stone .finish-swatch {
-  background: linear-gradient(135deg, #d2dae2, #b7c1cb);
+.reference-actions {
+  margin-top: 1rem;
+  align-items: center;
+  justify-content: flex-start;
 }
 
-.finish-card.smooth .finish-swatch {
-  background: linear-gradient(135deg, #d7dee5, #b9c3cd);
+.reference-chip {
+  font-size: 0.85rem;
+  color: rgba(15, 23, 42, 0.7);
+  font-weight: 600;
 }
 
-.finish-card.exposed .finish-swatch {
-  background: linear-gradient(135deg, #c7b59a, #8f7a63);
+.style-profile {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.08);
 }
 
-.finish-card.broom .finish-swatch {
-  background: linear-gradient(135deg, #d6d6d6, #a0a0a0);
+.profile-title {
+  font-weight: 600;
+  margin-bottom: 0.75rem;
 }
 
-.finish-card.sand .finish-swatch {
-  background: linear-gradient(135deg, #e3d5c3, #bfa88f);
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  color: rgba(15, 23, 42, 0.7);
+}
+
+.profile-grid strong {
+  display: block;
+  color: var(--slate);
+  font-size: 0.95rem;
+  margin-top: 0.2rem;
 }
 
 .finish-card.slate .finish-swatch {
