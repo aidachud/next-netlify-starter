@@ -246,14 +246,97 @@ export default function Home() {
   const [thickness, setThickness] = useState(6)
   const [drivewayPoints, setDrivewayPoints] = useState([])
   const [isPolygonClosed, setIsPolygonClosed] = useState(false)
+  const [renderedImage, setRenderedImage] = useState(null)
+  const [isRendering, setIsRendering] = useState(false)
+  const [renderError, setRenderError] = useState('')
 
   const hasImage = Boolean(uploadedImage)
 
   const finishOptions = useMemo(() => finishes, [])
 
+  const statusMessage = !hasImage
+    ? 'Upload a photo to begin'
+    : isRendering
+      ? 'Rendering with Z.ai...'
+      : isPolygonClosed
+        ? renderedImage
+          ? 'Z.ai render applied'
+          : 'Polygon locked · finish applied'
+        : 'Click to add points · close the shape when ready'
+
   useEffect(() => {
     setColor(selectedFinish.tint)
   }, [selectedFinish])
+
+  useEffect(() => {
+    setRenderedImage(null)
+    setRenderError('')
+  }, [selectedFinish, color, uploadedImage])
+
+  const buildPrompt = () =>
+    `Photorealistic ${selectedFinish.name} concrete driveway surface. ${selectedFinish.description} Preserve the surrounding landscape and lighting.`
+
+  const getImageDataUrl = async (source) => {
+    if (source.startsWith('data:')) return source
+    const response = await fetch(source)
+    const blob = await response.blob()
+    return await new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result)
+      reader.readAsDataURL(blob)
+    })
+  }
+
+  const createMaskDataUrl = (canvas, points) => {
+    const maskCanvas = document.createElement('canvas')
+    maskCanvas.width = canvas.width
+    maskCanvas.height = canvas.height
+    const ctx = maskCanvas.getContext('2d')
+    ctx.fillStyle = 'black'
+    ctx.fillRect(0, 0, maskCanvas.width, maskCanvas.height)
+    ctx.fillStyle = 'white'
+    ctx.beginPath()
+    points.forEach((point, index) => {
+      if (index === 0) {
+        ctx.moveTo(point.x, point.y)
+      } else {
+        ctx.lineTo(point.x, point.y)
+      }
+    })
+    ctx.closePath()
+    ctx.fill()
+    return maskCanvas.toDataURL('image/png')
+  }
+
+  const requestZaiRender = async () => {
+    const canvas = canvasRef.current
+    if (!canvas || drivewayPoints.length < 3) return
+    setIsRendering(true)
+    setRenderError('')
+    try {
+      const imageData = await getImageDataUrl(uploadedImage)
+      const maskData = createMaskDataUrl(canvas, drivewayPoints)
+      const response = await fetch('/api/zai-render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageData,
+          maskData,
+          prompt: buildPrompt(),
+          size: `${canvas.width}x${canvas.height}`,
+        }),
+      })
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload.error || 'Z.ai render failed.')
+      }
+      setRenderedImage(payload.image)
+    } catch (error) {
+      setRenderError(error.message)
+    } finally {
+      setIsRendering(false)
+    }
+  }
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -264,10 +347,14 @@ export default function Home() {
     const context = canvas.getContext('2d')
     const image = new Image()
     image.onload = () => {
-      canvas.width = image.width
-      canvas.height = image.height
-      context.clearRect(0, 0, canvas.width, canvas.height)
-      context.drawImage(image, 0, 0, canvas.width, canvas.height)
+      const drawBase = () => {
+        canvas.width = image.width
+        canvas.height = image.height
+        context.clearRect(0, 0, canvas.width, canvas.height)
+        context.drawImage(image, 0, 0, canvas.width, canvas.height)
+      }
+
+      drawBase()
 
       const topWidth = (mask.topWidth / 100) * canvas.width
       const bottomWidth = (mask.bottomWidth / 100) * canvas.width
@@ -276,7 +363,14 @@ export default function Home() {
       const curveDepth = (mask.curvature / 100) * canvas.height
       const centerX = canvas.width / 2
 
-      if (drivewayPoints.length >= 3 && isPolygonClosed) {
+      const applyFinish = (overlayImage) => {
+        if (overlayImage) {
+          context.globalCompositeOperation = 'source-over'
+          context.globalAlpha = 1
+          context.drawImage(overlayImage, 0, 0, canvas.width, canvas.height)
+          return
+        }
+
         context.save()
         context.beginPath()
         drivewayPoints.forEach((point, index) => {
@@ -337,6 +431,39 @@ export default function Home() {
         context.setLineDash([])
       }
 
+      if (drivewayPoints.length >= 3 && isPolygonClosed) {
+        if (renderedImage) {
+          const overlay = new Image()
+          overlay.onload = () => {
+            drawBase()
+            context.save()
+            context.beginPath()
+            drivewayPoints.forEach((point, index) => {
+              if (index === 0) {
+                context.moveTo(point.x, point.y)
+              } else {
+                context.lineTo(point.x, point.y)
+              }
+            })
+            context.closePath()
+            context.clip()
+            applyFinish(overlay)
+            context.restore()
+
+            context.globalCompositeOperation = 'source-over'
+            context.globalAlpha = 1
+            context.strokeStyle = 'rgba(255, 255, 255, 0.65)'
+            context.lineWidth = thickness
+            context.setLineDash([14, 10])
+            context.stroke()
+            context.setLineDash([])
+          }
+          overlay.src = renderedImage
+        } else {
+          applyFinish()
+        }
+      }
+
       if (drivewayPoints.length > 0 && !isPolygonClosed) {
         drivewayPoints.forEach((point, index) => {
           context.beginPath()
@@ -395,7 +522,16 @@ export default function Home() {
       }
     }
     image.src = uploadedImage
-  }, [uploadedImage, selectedFinish, mask, color, thickness, drivewayPoints, isPolygonClosed])
+  }, [
+    uploadedImage,
+    selectedFinish,
+    mask,
+    color,
+    thickness,
+    drivewayPoints,
+    isPolygonClosed,
+    renderedImage,
+  ])
 
   const handleFile = (event) => {
     const file = event.target.files?.[0]
@@ -405,6 +541,8 @@ export default function Home() {
       setUploadedImage(loadEvent.target.result)
       setDrivewayPoints([])
       setIsPolygonClosed(false)
+      setRenderedImage(null)
+      setRenderError('')
     }
     reader.readAsDataURL(file)
   }
@@ -414,6 +552,8 @@ export default function Home() {
     setMask(preset.settings)
     setDrivewayPoints([])
     setIsPolygonClosed(false)
+    setRenderedImage(null)
+    setRenderError('')
   }
 
   const handleMaskChange = (key) => (event) => {
@@ -430,16 +570,21 @@ export default function Home() {
     const x = (event.clientX - rect.left) * scaleX
     const y = (event.clientY - rect.top) * scaleY
     setDrivewayPoints((prev) => [...prev, { x, y }])
+    setRenderedImage(null)
+    setRenderError('')
   }
 
   const clearPoints = () => {
     setDrivewayPoints([])
     setIsPolygonClosed(false)
+    setRenderedImage(null)
+    setRenderError('')
   }
 
   const closePolygon = () => {
     if (drivewayPoints.length < 3) return
     setIsPolygonClosed(true)
+    requestZaiRender()
   }
 
   return (
@@ -569,13 +714,7 @@ export default function Home() {
               <div className="renderer-header">
                 <div>
                   <h3>Live Render</h3>
-                  <p>
-                    {hasImage
-                      ? isPolygonClosed
-                        ? 'Polygon locked · finish applied'
-                        : 'Click to add points · close the shape when ready'
-                      : 'Upload a photo to begin'}
-                  </p>
+                  <p>{statusMessage}</p>
                 </div>
                 <div className="finish-pill">{selectedFinish.name}</div>
               </div>
@@ -589,13 +728,24 @@ export default function Home() {
                 )}
               </div>
               <div className="canvas-actions">
-                <button className="preset-button" type="button" onClick={closePolygon}>
+                <button
+                  className="preset-button"
+                  type="button"
+                  onClick={closePolygon}
+                  disabled={isRendering}
+                >
                   Close shape
                 </button>
-                <button className="preset-button" type="button" onClick={clearPoints}>
+                <button
+                  className="preset-button"
+                  type="button"
+                  onClick={clearPoints}
+                  disabled={isRendering}
+                >
                   Reset points
                 </button>
               </div>
+              {renderError ? <p className="render-error">{renderError}</p> : null}
               <div className="controls">
                 <div className="control-group">
                   <h4>Finish selection</h4>

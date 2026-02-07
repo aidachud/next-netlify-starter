@@ -378,6 +378,17 @@ p {
   padding: 0.45rem 1rem;
 }
 
+.canvas-actions .preset-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.render-error {
+  margin: -0.5rem 0 0;
+  color: #b91c1c;
+  font-size: 0.9rem;
+}
+
 .canvas-placeholder {
   text-align: center;
   padding: 3rem;
