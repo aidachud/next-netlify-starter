@@ -91,9 +91,9 @@ export default function Home() {
   const statusMessage = !hasImage
     ? 'Upload a photo to begin'
     : isRendering
-      ? renderStage || 'Rendering with Leonardo...'
+      ? renderStage || 'Rendering with OpenAI...'
       : renderedTexture
-        ? 'Leonardo render applied'
+        ? 'OpenAI render applied'
         : isPolygonClosed
           ? 'Polygon locked · ready to render'
           : 'Click to add points · close the shape when ready'
@@ -135,12 +135,12 @@ export default function Home() {
     return maskCanvas.toDataURL('image/png')
   }
 
-  const requestLeonardoRender = async () => {
+  const requestOpenAIRender = async () => {
     const canvas = canvasRef.current
     if (!canvas || drivewayPoints.length < 3) return
     setIsRendering(true)
     setRenderError('')
-    setRenderStage('Sending to Leonardo...')
+    setRenderStage('Sending to OpenAI...')
     try {
       const imageData = await getImageDataUrl(uploadedImage)
       const maskData = createMaskDataUrl(canvas, drivewayPoints)
@@ -161,7 +161,7 @@ export default function Home() {
       })
       const payload = await response.json()
       if (!response.ok) {
-        throw new Error(payload.error || 'Leonardo render failed.')
+        throw new Error(payload.error || 'OpenAI render failed.')
       }
       setRenderStage('Rendering finish...')
       setRenderedTexture(payload.textureImage)
@@ -520,7 +520,7 @@ export default function Home() {
                 <button
                   className="primary-button render-button"
                   type="button"
-                  onClick={requestLeonardoRender}
+                  onClick={requestOpenAIRender}
                   disabled={isRendering || !isPolygonClosed}
                 >
                   Render driveway

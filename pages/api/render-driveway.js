@@ -6,8 +6,6 @@ export const config = {
   },
 }
 
-const LEONARDO_BASE_URL = process.env.LEONARDO_BASE_URL || 'https://cloud.leonardo.ai/api/rest/v1'
-
 const buildRenderPrompt = (styleName) =>
   `Photorealistic concrete driveway finish based on reference ${styleName}. Match the color, smoothness, subtle mottling, and border detail. Preserve the surrounding environment and lighting.`
 
@@ -18,20 +16,13 @@ const decodeDataUrl = (dataUrl) => {
   return Buffer.from(match[2], 'base64')
 }
 
-const extractGenerationId = (payload) =>
-  payload?.sdGenerationJob?.generationId ||
-  payload?.generationId ||
-  payload?.job?.generationId ||
-  payload?.data?.generationId ||
-  null
-
-const extractImageUrl = (payload) =>
-  payload?.generations_by_pk?.generated_images?.[0]?.url ||
-  payload?.generations_by_pk?.generated_images?.[0]?.imageUrl ||
-  payload?.generated_images?.[0]?.url ||
-  payload?.generated_images?.[0]?.imageUrl ||
-  payload?.data?.generated_images?.[0]?.url ||
-  null
+const extractOpenAIImage = (payload) => {
+  const image = payload?.data?.[0]
+  if (!image) return null
+  if (image.url) return image.url
+  if (image.b64_json) return `data:image/png;base64,${image.b64_json}`
+  return null
+}
 
 const handler = async (req, res) => {
   if (req.method !== 'POST') {
@@ -39,18 +30,18 @@ const handler = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  if (!process.env.LEONARDO_API_KEY) {
-    return res.status(501).json({ error: 'LEONARDO_API_KEY is not configured.' })
+  if (!process.env.OPENAI_API_KEY) {
+    return res.status(501).json({ error: 'OPENAI_API_KEY is not configured.' })
   }
 
-  const { siteImageUrl, referenceStyleUrl, styleName, polygon } = req.body || {}
+  const { siteImageUrl, maskData, styleName, polygon } = req.body || {}
 
   if (!siteImageUrl) {
     return res.status(400).json({ error: 'siteImageUrl is required.' })
   }
 
-  if (!referenceStyleUrl) {
-    return res.status(400).json({ error: 'referenceStyleUrl is required.' })
+  if (!maskData) {
+    return res.status(400).json({ error: 'maskData is required.' })
   }
 
   if (!Array.isArray(polygon) || polygon.length < 3) {
@@ -63,101 +54,35 @@ const handler = async (req, res) => {
       return res.status(400).json({ error: 'siteImageUrl must be a data URL.' })
     }
 
-    const formData = new FormData()
-    formData.append('init_image', new Blob([imageBuffer]), 'driveway.png')
-    formData.append('extension', 'png')
+    const maskBuffer = decodeDataUrl(maskData)
+    if (!maskBuffer) {
+      return res.status(400).json({ error: 'maskData must be a data URL.' })
+    }
 
-    const initResponse = await fetch(`${LEONARDO_BASE_URL}/init-image`, {
+    const formData = new FormData()
+    formData.append('model', process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1')
+    formData.append('prompt', buildRenderPrompt(styleName || 'driveway finish'))
+    formData.append('image', new Blob([imageBuffer], { type: 'image/png' }), 'driveway.png')
+    formData.append('mask', new Blob([maskBuffer], { type: 'image/png' }), 'mask.png')
+
+    const editResponse = await fetch('https://api.openai.com/v1/images/edits', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${process.env.LEONARDO_API_KEY}`,
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: formData,
     })
 
-    const initPayload = await initResponse.json()
-    if (!initResponse.ok) {
-      return res.status(initResponse.status).json({
-        error: initPayload?.error || initPayload?.message || 'Leonardo init image failed.',
+    const editPayload = await editResponse.json()
+    if (!editResponse.ok) {
+      return res.status(editResponse.status).json({
+        error: editPayload?.error?.message || editPayload?.error || 'OpenAI render failed.',
       })
     }
 
-    const initImageId =
-      initPayload?.uploadInitImage?.id ||
-      initPayload?.init_image_id ||
-      initPayload?.data?.id ||
-      null
-
-    if (!initImageId) {
-      return res.status(502).json({ error: 'Leonardo returned no init image id.' })
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    const generationPayloadBody = {
-      prompt: buildRenderPrompt(styleName || 'driveway finish'),
-      init_image_id: initImageId,
-      init_strength: 0.35,
-      num_images: 1,
-      guidance_scale: 7,
-    }
-
-    let generationPayload = null
-    let generationResponse = null
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      generationResponse = await fetch(`${LEONARDO_BASE_URL}/generations`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${process.env.LEONARDO_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(generationPayloadBody),
-      })
-      generationPayload = await generationResponse.json()
-      if (generationResponse.ok) {
-        break
-      }
-
-      const errorMessage = generationPayload?.error || generationPayload?.message || ''
-      if (!errorMessage.toLowerCase().includes('init image unavailable')) {
-        return res.status(generationResponse.status).json({
-          error: errorMessage || 'Leonardo generation failed.',
-        })
-      }
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-    }
-
-    if (!generationResponse?.ok) {
-      return res.status(generationResponse?.status || 502).json({
-        error:
-          generationPayload?.error ||
-          generationPayload?.message ||
-          'Leonardo generation failed after retries.',
-      })
-    }
-
-    const generationId = extractGenerationId(generationPayload)
-    if (!generationId) {
-      return res.status(502).json({ error: 'Leonardo returned no generation id.' })
-    }
-
-    let textureImage = null
-    for (let attempt = 0; attempt < 12; attempt += 1) {
-      const pollResponse = await fetch(`${LEONARDO_BASE_URL}/generations/${generationId}`, {
-        headers: {
-          Authorization: `Bearer ${process.env.LEONARDO_API_KEY}`,
-        },
-      })
-      const pollPayload = await pollResponse.json()
-      textureImage = extractImageUrl(pollPayload)
-      if (textureImage) {
-        break
-      }
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-    }
-
+    const textureImage = extractOpenAIImage(editPayload)
     if (!textureImage) {
-      return res.status(502).json({ error: 'Leonardo render did not return an image.' })
+      return res.status(502).json({ error: 'OpenAI render did not return an image.' })
     }
 
     return res.status(200).json({ textureImage })
