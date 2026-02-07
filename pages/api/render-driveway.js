@@ -115,20 +115,25 @@ const handler = async (req, res) => {
       }
     }
 
+    const generationPayloadBody = {
+      prompt: buildRenderPrompt(styleName || 'driveway finish'),
+      init_image_id: initImageId,
+      init_strength: 0.35,
+      num_images: 1,
+      guidance_scale: 7,
+    }
+
+    if (maskInitImageId) {
+      generationPayloadBody.mask_init_image_id = maskInitImageId
+    }
+
     const generationResponse = await fetch(`${LEONARDO_BASE_URL}/generations`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${process.env.LEONARDO_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        prompt: buildRenderPrompt(styleName || 'driveway finish'),
-        init_image_id: initImageId,
-        init_strength: 0.35,
-        num_images: 1,
-        mask: maskInitImageId,
-        guidance_scale: 7,
-      }),
+      body: JSON.stringify(generationPayloadBody),
     })
 
     const generationPayload = await generationResponse.json()
