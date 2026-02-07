@@ -1,45 +1,450 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="UTF-8">
-    <title>Swimming Session Feedback Form</title>
-  </head>
-  <body>
-    <h1>Swimming Session Feedback Form</h1>
-    <form id="feedback-form">
-      <label for="enjoyment">How did you enjoy the session?</label>
-      <select id="enjoyment" name="enjoyment">
-        <option value="loved it">Loved it!</option>
-        <option value="okay">It was okay</option>
-        <option value="didnt enjoy it">Didn't enjoy it</option>
-      </select>
+import Head from 'next/head'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
-      <label for="effort">How much effort did you perceive during the session?</label>
-      <select id="effort" name="effort">
-        <option value="low">Low</option>
-        <option value="moderate">Moderate</option>
-        <option value="high">High</option>
-        <option value="very high">Very high</option>
-      </select>
+const finishes = [
+  {
+    id: 'exposed',
+    name: 'Exposed Aggregate',
+    description: 'Stone-forward sparkle with premium traction and depth.',
+    tint: '#c9b8a3',
+    grain: 0.35,
+  },
+  {
+    id: 'broom',
+    name: 'Modern Broom Finish',
+    description: 'Clean directional texture with crisp contemporary lines.',
+    tint: '#d7d5cf',
+    grain: 0.18,
+  },
+  {
+    id: 'sand',
+    name: 'Warm Sand Wash',
+    description: 'Soft, coastal-inspired tone with subtle movement.',
+    tint: '#d9c6ae',
+    grain: 0.25,
+  },
+  {
+    id: 'slate',
+    name: 'Stamped Slate',
+    description: 'Architectural slate pattern for a refined statement.',
+    tint: '#b7c1cb',
+    grain: 0.28,
+  },
+]
 
-      <label for="mood-before">How would you describe your mood before the session?</label>
-      <input type="range" id="mood-before" name="mood-before" min="-10" max="10">
+const featureHighlights = [
+  {
+    title: 'Photo Upload + Masking',
+    detail: 'Upload a driveway photo and define the pour area with a simple mask.',
+  },
+  {
+    title: 'Finish Library',
+    detail: 'Swap between aggregates, colors, and textures with instant previewing.',
+  },
+  {
+    title: 'Client-Ready Output',
+    detail: 'Export polished renders or share a private link for approvals.',
+  },
+]
 
-      <label for="mood-after">How would you describe your mood after the session?</label>
-      <input type="range" id="mood-after" name="mood-after" min="-10" max="10">
+const stats = [
+  { label: 'Finish combinations', value: '40+' },
+  { label: 'Average mockup time', value: '< 4 min' },
+  { label: 'Approval speed', value: '2.8x faster' },
+]
 
-      <label for="soreness">Did you experience any soreness?</label>
-      <input type="checkbox" id="soreness" name="soreness">
+const maskDefaults = {
+  topWidth: 42,
+  bottomWidth: 78,
+  topOffset: 20,
+  bottomOffset: 92,
+}
 
-      <label for="injury">Did you have any injuries?</label>
-      <input type="checkbox" id="injury" name="injury">
+export default function Home() {
+  const canvasRef = useRef(null)
+  const [uploadedImage, setUploadedImage] = useState(null)
+  const [selectedFinish, setSelectedFinish] = useState(finishes[0])
+  const [opacity, setOpacity] = useState(0.75)
+  const [mask, setMask] = useState(maskDefaults)
 
-      <label for="rating">How would you rate the session overall?</label>
-      <input type="range" id="rating" name="rating" min="1" max="10">
+  const hasImage = Boolean(uploadedImage)
 
-      <button type="submit">Submit</button>
-    </form>
+  const finishOptions = useMemo(() => finishes, [])
 
-    <script src="feedback.js"></script>
-  </body>
-</html>
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas || !uploadedImage) {
+      return
+    }
+
+    const context = canvas.getContext('2d')
+    const image = new Image()
+    image.onload = () => {
+      canvas.width = image.width
+      canvas.height = image.height
+      context.clearRect(0, 0, canvas.width, canvas.height)
+      context.drawImage(image, 0, 0, canvas.width, canvas.height)
+
+      const topWidth = (mask.topWidth / 100) * canvas.width
+      const bottomWidth = (mask.bottomWidth / 100) * canvas.width
+      const topY = (mask.topOffset / 100) * canvas.height
+      const bottomY = (mask.bottomOffset / 100) * canvas.height
+      const centerX = canvas.width / 2
+
+      context.save()
+      context.beginPath()
+      context.moveTo(centerX - topWidth / 2, topY)
+      context.lineTo(centerX + topWidth / 2, topY)
+      context.lineTo(centerX + bottomWidth / 2, bottomY)
+      context.lineTo(centerX - bottomWidth / 2, bottomY)
+      context.closePath()
+      context.clip()
+
+      context.globalAlpha = opacity
+      context.fillStyle = selectedFinish.tint
+      context.globalCompositeOperation = 'multiply'
+      context.fillRect(0, 0, canvas.width, canvas.height)
+
+      const grainCanvas = document.createElement('canvas')
+      grainCanvas.width = canvas.width
+      grainCanvas.height = canvas.height
+      const grainContext = grainCanvas.getContext('2d')
+      const imageData = grainContext.createImageData(canvas.width, canvas.height)
+      for (let i = 0; i < imageData.data.length; i += 4) {
+        const value = 200 + Math.random() * 55
+        imageData.data[i] = value
+        imageData.data[i + 1] = value
+        imageData.data[i + 2] = value
+        imageData.data[i + 3] = 255 * selectedFinish.grain
+      }
+      grainContext.putImageData(imageData, 0, 0)
+
+      context.globalCompositeOperation = 'overlay'
+      context.globalAlpha = 1
+      context.drawImage(grainCanvas, 0, 0)
+      context.restore()
+
+      context.globalCompositeOperation = 'source-over'
+      context.globalAlpha = 1
+      context.strokeStyle = 'rgba(255, 255, 255, 0.65)'
+      context.lineWidth = 4
+      context.setLineDash([14, 10])
+      context.stroke()
+      context.setLineDash([])
+    }
+    image.src = uploadedImage
+  }, [uploadedImage, selectedFinish, opacity, mask])
+
+  const handleFile = (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (loadEvent) => {
+      setUploadedImage(loadEvent.target.result)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const loadSample = () => {
+    setUploadedImage('/sample-driveway.svg')
+  }
+
+  const handleMaskChange = (key) => (event) => {
+    const value = Number(event.target.value)
+    setMask((prev) => ({ ...prev, [key]: value }))
+  }
+
+  return (
+    <>
+      <Head>
+        <title>Driveway Design Studio</title>
+        <meta
+          name="description"
+          content="Upload a driveway photo and render premium concrete finishes with a stunning, client-ready experience."
+        />
+      </Head>
+      <div className="page">
+        <header className="hero">
+          <nav className="nav">
+            <div className="logo">
+              <span className="logo-mark" />
+              Driveway Design Studio
+            </div>
+            <div className="nav-actions">
+              <button className="ghost-button" type="button">
+                Client Gallery
+              </button>
+              <button className="primary-button" type="button">
+                Book a Demo
+              </button>
+            </div>
+          </nav>
+          <div className="hero-grid">
+            <div className="hero-copy">
+              <p className="eyebrow">Luxury concrete visualization</p>
+              <h1>Render stunning driveway concepts from a single photo.</h1>
+              <p className="hero-subtitle">
+                Give clients a professional, interactive preview of exposed aggregate, stamped
+                slate, broom finishes, and more. Upload a driveway photo, mask the pour area, and
+                generate refined visual concepts in minutes.
+              </p>
+              <div className="hero-cta">
+                <button className="primary-button" type="button">
+                  Start a Visualization
+                </button>
+                <button className="ghost-button" type="button">
+                  View Finish Library
+                </button>
+              </div>
+              <div className="metrics">
+                {stats.map((metric) => (
+                  <div key={metric.label} className="metric">
+                    <p className="metric-value">{metric.value}</p>
+                    <p className="metric-label">{metric.label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="hero-visual">
+              <div className="visual-card">
+                <div className="visual-header">
+                  <span>Before</span>
+                  <span className="pill">Raw Base</span>
+                </div>
+                <div className="visual-image" />
+              </div>
+              <div className="visual-card accent">
+                <div className="visual-header">
+                  <span>After</span>
+                  <span className="pill">Live Rendering</span>
+                </div>
+                <div className="visual-image finished" />
+                <div className="visual-controls">
+                  <div className="control" />
+                  <div className="control" />
+                  <div className="control" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <section className="section workspace">
+          <div className="workspace-copy">
+            <p className="eyebrow">Rendering workspace</p>
+            <h2>Upload a driveway photo and preview finishes instantly.</h2>
+            <p>
+              This demo lets you load a real photo, draw a simple driveway mask, and apply custom
+              finishes. The renderer blends color, texture, and grain so clients can visualize
+              exactly what their driveway could become.
+            </p>
+          </div>
+          <div className="workspace-panel">
+            <div className="upload-card">
+              <div className="upload-dropzone">
+                <div className="upload-icon" />
+                <div>
+                  <p className="upload-title">Drop driveway photo here</p>
+                  <p className="upload-subtitle">JPEG, PNG, or HEIC up to 20MB</p>
+                </div>
+              </div>
+              <div className="upload-actions">
+                <label className="primary-button" htmlFor="photo-upload">
+                  Upload Photo
+                </label>
+                <input
+                  id="photo-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFile}
+                  hidden
+                />
+                <button className="ghost-button" type="button" onClick={loadSample}>
+                  Use Sample Driveway
+                </button>
+              </div>
+              <div className="upload-footer">
+                <span className="pill">Edge mask controls</span>
+                <span className="pill">HD render export</span>
+                <span className="pill">Client share link</span>
+              </div>
+            </div>
+
+            <div className="renderer">
+              <div className="renderer-header">
+                <div>
+                  <h3>Live Render</h3>
+                  <p>{hasImage ? 'Mask & finish applied' : 'Upload a photo to begin'}</p>
+                </div>
+                <div className="finish-pill">{selectedFinish.name}</div>
+              </div>
+              <div className="canvas-frame">
+                {hasImage ? (
+                  <canvas ref={canvasRef} className="render-canvas" />
+                ) : (
+                  <div className="canvas-placeholder">
+                    <p>Load a driveway photo to see the finish preview.</p>
+                  </div>
+                )}
+              </div>
+              <div className="controls">
+                <div className="control-group">
+                  <h4>Finish selection</h4>
+                  <div className="finish-grid">
+                    {finishOptions.map((finish) => (
+                      <button
+                        key={finish.id}
+                        type="button"
+                        className={`finish-card ${finish.id} ${
+                          selectedFinish.id === finish.id ? 'active' : ''
+                        }`}
+                        onClick={() => setSelectedFinish(finish)}
+                      >
+                        <div className="finish-swatch" />
+                        <div>
+                          <p className="finish-title">{finish.name}</p>
+                          <p className="finish-description">{finish.description}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="control-group">
+                  <h4>Finish opacity</h4>
+                  <div className="range-row">
+                    <input
+                      type="range"
+                      min="0.3"
+                      max="0.95"
+                      step="0.01"
+                      value={opacity}
+                      onChange={(event) => setOpacity(Number(event.target.value))}
+                    />
+                    <span>{Math.round(opacity * 100)}%</span>
+                  </div>
+                </div>
+
+                <div className="control-group">
+                  <h4>Driveway mask</h4>
+                  <div className="range-grid">
+                    <label>
+                      Top width
+                      <input
+                        type="range"
+                        min="20"
+                        max="70"
+                        value={mask.topWidth}
+                        onChange={handleMaskChange('topWidth')}
+                      />
+                    </label>
+                    <label>
+                      Bottom width
+                      <input
+                        type="range"
+                        min="50"
+                        max="100"
+                        value={mask.bottomWidth}
+                        onChange={handleMaskChange('bottomWidth')}
+                      />
+                    </label>
+                    <label>
+                      Top offset
+                      <input
+                        type="range"
+                        min="5"
+                        max="50"
+                        value={mask.topOffset}
+                        onChange={handleMaskChange('topOffset')}
+                      />
+                    </label>
+                    <label>
+                      Bottom offset
+                      <input
+                        type="range"
+                        min="60"
+                        max="98"
+                        value={mask.bottomOffset}
+                        onChange={handleMaskChange('bottomOffset')}
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="section designs">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Finish library</p>
+              <h2>Offer a curated menu of premium looks.</h2>
+              <p>
+                Build a signature catalog of colors, aggregates, borders, and sealers. Let clients
+                compare options side-by-side for confident approvals.
+              </p>
+            </div>
+            <button className="ghost-button" type="button">
+              Manage Library
+            </button>
+          </div>
+          <div className="design-grid">
+            {finishes.map((option) => (
+              <div key={option.name} className={`design-card ${option.id}`}>
+                <div className="design-swatch" />
+                <h3>{option.name}</h3>
+                <p>{option.description}</p>
+                <button className="text-button" type="button">
+                  Preview on driveway →
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="section timeline">
+          <div className="timeline-card">
+            <div>
+              <p className="eyebrow">How it works</p>
+              <h2>From photo to approval in three steps.</h2>
+            </div>
+            <div className="timeline-steps">
+              {featureHighlights.map((step, index) => (
+                <div key={step.title} className="timeline-step">
+                  <div className="step-index">0{index + 1}</div>
+                  <div>
+                    <h3>{step.title}</h3>
+                    <p>{step.detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="section cta">
+          <div className="cta-card">
+            <div>
+              <p className="eyebrow">Launch-ready experience</p>
+              <h2>Deliver a stunning, professional client journey.</h2>
+              <p>
+                Your clients expect the same caliber of presentation as the finished driveway.
+                Elevate every bid with polished visuals, instant comparisons, and effortless
+                approvals.
+              </p>
+            </div>
+            <div className="cta-actions">
+              <button className="primary-button" type="button">
+                Schedule a Walkthrough
+              </button>
+              <button className="ghost-button" type="button">
+                Download Deck
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </>
+  )
+}
