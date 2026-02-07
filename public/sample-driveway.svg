@@ -1,25 +1,42 @@
-<svg width="1400" height="900" viewBox="0 0 1400 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="1600" height="1000" viewBox="0 0 1600 1000" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#b9d7f5"/>
-      <stop offset="100%" stop-color="#eef3f8"/>
+      <stop offset="0%" stop-color="#a7c7f5"/>
+      <stop offset="70%" stop-color="#e8f1fb"/>
+    </linearGradient>
+    <linearGradient id="mountain" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7f8a99"/>
+      <stop offset="100%" stop-color="#c3cbd6"/>
+    </linearGradient>
+    <linearGradient id="house" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4a4f58"/>
+      <stop offset="100%" stop-color="#2c3036"/>
     </linearGradient>
     <linearGradient id="drive" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#c9c3b9"/>
-      <stop offset="100%" stop-color="#b5ada1"/>
+      <stop offset="0%" stop-color="#cfc9be"/>
+      <stop offset="100%" stop-color="#b7afa3"/>
     </linearGradient>
+    <radialGradient id="sun" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1200 160) rotate(90) scale(140)">
+      <stop stop-color="#f8e8b0" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#f8e8b0" stop-opacity="0"/>
+    </radialGradient>
   </defs>
-  <rect width="1400" height="900" fill="url(#sky)"/>
-  <rect y="520" width="1400" height="380" fill="#dde3ea"/>
-  <rect x="180" y="260" width="620" height="360" rx="12" fill="#444b57"/>
-  <rect x="210" y="300" width="240" height="140" rx="6" fill="#2b3039"/>
-  <rect x="500" y="300" width="240" height="140" rx="6" fill="#2b3039"/>
-  <rect x="240" y="470" width="220" height="110" rx="6" fill="#2b3039"/>
-  <rect x="520" y="460" width="240" height="130" rx="6" fill="#2b3039"/>
-  <rect x="820" y="350" width="300" height="220" rx="10" fill="#3e4550"/>
-  <rect x="870" y="390" width="200" height="140" rx="8" fill="#2b3039"/>
-  <path d="M260 880L460 540L920 540L1210 880H260Z" fill="url(#drive)"/>
-  <path d="M260 880L460 540L920 540L1210 880" stroke="#9c9488" stroke-width="10"/>
-  <circle cx="120" cy="640" r="80" fill="#6b7280"/>
-  <circle cx="1280" cy="660" r="70" fill="#737b87"/>
+  <rect width="1600" height="1000" fill="url(#sky)"/>
+  <rect width="1600" height="1000" fill="url(#sun)"/>
+  <path d="M0 380L280 260L520 320L760 240L980 320L1240 250L1600 360V520H0V380Z" fill="url(#mountain)" opacity="0.55"/>
+  <rect y="520" width="1600" height="480" fill="#dfe6ef"/>
+  <rect x="190" y="260" width="660" height="400" rx="14" fill="url(#house)"/>
+  <rect x="230" y="300" width="250" height="150" rx="8" fill="#22262c"/>
+  <rect x="520" y="300" width="250" height="150" rx="8" fill="#22262c"/>
+  <rect x="250" y="500" width="220" height="130" rx="8" fill="#22262c"/>
+  <rect x="530" y="480" width="250" height="150" rx="8" fill="#22262c"/>
+  <rect x="860" y="360" width="320" height="230" rx="12" fill="#343a43"/>
+  <rect x="910" y="400" width="220" height="150" rx="8" fill="#22262c"/>
+  <path d="M260 980L470 600L1040 600L1330 980H260Z" fill="url(#drive)"/>
+  <path d="M260 980L470 600L1040 600L1330 980" stroke="#9c9387" stroke-width="10"/>
+  <path d="M260 980L470 600L1040 600L1330 980" stroke="#bfb8ad" stroke-width="4"/>
+  <circle cx="140" cy="680" r="90" fill="#74808c"/>
+  <circle cx="1420" cy="710" r="80" fill="#6f7a85"/>
+  <path d="M80 760C120 720 160 720 200 760" stroke="#6d744d" stroke-width="12" stroke-linecap="round"/>
+  <path d="M1360 780C1400 740 1440 740 1480 780" stroke="#6d744d" stroke-width="12" stroke-linecap="round"/>
 </svg>
