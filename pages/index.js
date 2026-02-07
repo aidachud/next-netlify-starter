@@ -73,26 +73,7 @@ const stats = [
   { label: 'Approval speed', value: '2.8x faster' },
 ]
 
-const styleReferences = [
-  {
-    id: 'modern-smooth',
-    name: 'Modern Smooth Concrete',
-    description: 'Cool grey tone with subtle mottling and tight joints.',
-    image: '/style-modern-smooth.svg',
-  },
-  {
-    id: 'light-stone',
-    name: 'Light Stone Concrete',
-    description: 'Warm light concrete with refined speckling.',
-    image: '/style-light-stone.svg',
-  },
-  {
-    id: 'exposed-aggregate',
-    name: 'Exposed Aggregate Border',
-    description: 'Aggregate sparkle with a darker perimeter.',
-    image: '/style-exposed-aggregate.svg',
-  },
-]
+const referenceImage = '/reference-driveway.svg'
 
 export default function Home() {
   const canvasRef = useRef(null)
@@ -104,29 +85,23 @@ export default function Home() {
   const [isRendering, setIsRendering] = useState(false)
   const [renderStage, setRenderStage] = useState('')
   const [renderError, setRenderError] = useState('')
-  const [referenceStyle, setReferenceStyle] = useState(styleReferences[0])
-  const [referenceImage, setReferenceImage] = useState(styleReferences[0].image)
-  const [styleProfile, setStyleProfile] = useState(null)
 
   const hasImage = Boolean(uploadedImage)
 
   const statusMessage = !hasImage
     ? 'Upload a photo to begin'
-    : !referenceImage
-      ? 'Select a reference driveway style'
-      : isRendering
-        ? renderStage || 'Rendering with Z.ai...'
-        : renderedTexture
-          ? 'Z.ai render applied'
-          : isPolygonClosed
-            ? 'Polygon locked · ready to render'
-            : 'Click to add points · close the shape when ready'
+    : isRendering
+      ? renderStage || 'Rendering with Leonardo...'
+      : renderedTexture
+        ? 'Leonardo render applied'
+        : isPolygonClosed
+          ? 'Polygon locked · ready to render'
+          : 'Click to add points · close the shape when ready'
 
   useEffect(() => {
     setRenderedTexture(null)
-    setStyleProfile(null)
     setRenderError('')
-  }, [uploadedImage, referenceImage])
+  }, [uploadedImage])
 
   const getImageDataUrl = async (source) => {
     if (source.startsWith('data:')) return source
@@ -139,19 +114,36 @@ export default function Home() {
     })
   }
 
-  const requestZaiRender = async () => {
+  const createMaskDataUrl = (canvas, points) => {
+    const maskCanvas = document.createElement('canvas')
+    maskCanvas.width = canvas.width
+    maskCanvas.height = canvas.height
+    const ctx = maskCanvas.getContext('2d')
+    ctx.fillStyle = 'black'
+    ctx.fillRect(0, 0, maskCanvas.width, maskCanvas.height)
+    ctx.fillStyle = 'white'
+    ctx.beginPath()
+    points.forEach((point, index) => {
+      if (index === 0) {
+        ctx.moveTo(point.x, point.y)
+      } else {
+        ctx.lineTo(point.x, point.y)
+      }
+    })
+    ctx.closePath()
+    ctx.fill()
+    return maskCanvas.toDataURL('image/png')
+  }
+
+  const requestLeonardoRender = async () => {
     const canvas = canvasRef.current
     if (!canvas || drivewayPoints.length < 3) return
-    if (!referenceImage) {
-      setRenderError('Select a reference driveway style before rendering.')
-      return
-    }
     setIsRendering(true)
     setRenderError('')
-    setRenderStage('Analyzing style...')
+    setRenderStage('Sending to Leonardo...')
     try {
       const imageData = await getImageDataUrl(uploadedImage)
-      const referenceData = await getImageDataUrl(referenceImage)
+      const maskData = createMaskDataUrl(canvas, drivewayPoints)
       const normalizedPoints = drivewayPoints.map((point) => [
         point.x / canvas.width,
         point.y / canvas.height,
@@ -161,18 +153,18 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           siteImageUrl: imageData,
+          maskData,
           polygon: normalizedPoints,
-          referenceStyleUrl: referenceData,
-          styleName: referenceStyle?.name || 'Driveway Style',
+          referenceStyleUrl: referenceImage,
+          styleName: 'Reference Driveway',
         }),
       })
       const payload = await response.json()
       if (!response.ok) {
-        throw new Error(payload.error || 'Z.ai render failed.')
+        throw new Error(payload.error || 'Leonardo render failed.')
       }
-      setRenderStage('Generating finish...')
+      setRenderStage('Rendering finish...')
       setRenderedTexture(payload.textureImage)
-      setStyleProfile(payload.styleProfile || null)
     } catch (error) {
       setRenderError(error.message)
     } finally {
@@ -218,7 +210,7 @@ export default function Home() {
         const finishContext = finishCanvas.getContext('2d')
 
         const pattern = finishContext.createPattern(textureImage, 'repeat')
-        finishContext.fillStyle = pattern || styleProfile?.base_color || '#c9d0d6'
+        finishContext.fillStyle = pattern || '#c9d0d6'
         finishContext.fillRect(0, 0, finishCanvas.width, finishCanvas.height)
 
         finishContext.globalCompositeOperation = 'multiply'
@@ -334,7 +326,6 @@ export default function Home() {
     drivewayPoints,
     isPolygonClosed,
     renderedTexture,
-    styleProfile,
   ])
 
   const handleFile = (event) => {
@@ -346,36 +337,9 @@ export default function Home() {
       setDrivewayPoints([])
       setIsPolygonClosed(false)
       setRenderedTexture(null)
-      setStyleProfile(null)
       setRenderError('')
     }
     reader.readAsDataURL(file)
-  }
-
-  const handleReferenceFile = (event) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = (loadEvent) => {
-      setReferenceImage(loadEvent.target.result)
-      setReferenceStyle({
-        id: 'custom',
-        name: file.name,
-        description: 'Custom reference style',
-      })
-      setRenderedTexture(null)
-      setStyleProfile(null)
-      setRenderError('')
-    }
-    reader.readAsDataURL(file)
-  }
-
-  const handleReferenceSelect = (reference) => {
-    setReferenceStyle(reference)
-    setReferenceImage(reference.image)
-    setRenderedTexture(null)
-    setStyleProfile(null)
-    setRenderError('')
   }
 
   const handleCanvasClick = (event) => {
@@ -395,7 +359,6 @@ export default function Home() {
     setDrivewayPoints([])
     setIsPolygonClosed(false)
     setRenderedTexture(null)
-    setStyleProfile(null)
     setRenderError('')
   }
 
@@ -484,9 +447,9 @@ export default function Home() {
             <p className="eyebrow">Rendering workspace</p>
             <h2>Upload a driveway photo and preview finishes instantly.</h2>
             <p>
-              Load a site photo, choose a reference driveway style, and click along the driveway
-              edge to build a custom polygon. Close the shape, then render a photoreal finish that
-              blends into the original lighting.
+              Load a site photo and click along the driveway edge to build a custom polygon. Close
+              the shape, then render a photoreal finish that matches the reference driveway
+              material and blends into the original lighting.
             </p>
             <div className="workspace-hint">
               <strong>Tip:</strong> Click to add as many points as needed. Use “Close shape” to lock
@@ -534,7 +497,7 @@ export default function Home() {
                     <h3>Live Render</h3>
                     <p>{statusMessage}</p>
                   </div>
-                  <div className="finish-pill">{referenceStyle?.name || 'Reference style'}</div>
+                  <div className="finish-pill">Reference driveway</div>
                 </div>
                 <div className="canvas-frame">
                   {hasImage ? (
@@ -557,8 +520,8 @@ export default function Home() {
                 <button
                   className="primary-button render-button"
                   type="button"
-                  onClick={requestZaiRender}
-                  disabled={isRendering || !isPolygonClosed || !referenceImage}
+                  onClick={requestLeonardoRender}
+                  disabled={isRendering || !isPolygonClosed}
                 >
                   Render driveway
                 </button>
@@ -574,44 +537,18 @@ export default function Home() {
               {renderError ? <p className="render-error">{renderError}</p> : null}
               <div className="controls">
                 <div className="control-group">
-                  <h4>Reference driveway styles</h4>
-                  <div className="reference-grid">
-                    {styleReferences.map((reference) => (
-                      <button
-                        key={reference.id}
-                        type="button"
-                        className={`reference-card ${
-                          referenceStyle?.id === reference.id ? 'active' : ''
-                        }`}
-                        onClick={() => handleReferenceSelect(reference)}
-                      >
-                        <div
-                          className="reference-preview"
-                          style={{ backgroundImage: `url(${reference.image})` }}
-                        />
-                        <div>
-                          <p className="finish-title">{reference.name}</p>
-                          <p className="finish-description">{reference.description}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                  <div className="upload-actions reference-actions">
-                    <label className="primary-button" htmlFor="reference-upload">
-                      Upload reference
-                    </label>
-                    <input
-                      id="reference-upload"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleReferenceFile}
-                      hidden
+                  <h4>Reference driveway</h4>
+                  <div className="reference-card active">
+                    <div
+                      className="reference-preview"
+                      style={{ backgroundImage: `url(${referenceImage})` }}
                     />
-                    {referenceImage ? (
-                      <span className="reference-chip">Style loaded</span>
-                    ) : (
-                      <span className="reference-chip">No style selected</span>
-                    )}
+                    <div>
+                      <p className="finish-title">Modern light concrete</p>
+                      <p className="finish-description">
+                        Using the provided driveway photo as the render reference.
+                      </p>
+                    </div>
                   </div>
                 </div>
 
@@ -628,29 +565,6 @@ export default function Home() {
                     />
                     <span>{edgeFeather} px feather</span>
                   </div>
-                  {styleProfile ? (
-                    <div className="style-profile">
-                      <p className="profile-title">Style profile</p>
-                      <div className="profile-grid">
-                        <div>
-                          <span>Base color</span>
-                          <strong>{styleProfile.base_color}</strong>
-                        </div>
-                        <div>
-                          <span>Warmth</span>
-                          <strong>{styleProfile.warmth}</strong>
-                        </div>
-                        <div>
-                          <span>Texture</span>
-                          <strong>{styleProfile.texture_strength}</strong>
-                        </div>
-                        <div>
-                          <span>Joints</span>
-                          <strong>{styleProfile.joint_visibility}</strong>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
                 </div>
               </div>
             </div>

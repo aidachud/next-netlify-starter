@@ -6,50 +6,32 @@ export const config = {
   },
 }
 
-const ZAI_BASE_URL = process.env.ZAI_BASE_URL || 'https://api.z.ai/api/paas/v4'
-const ZAI_VISION_MODEL = process.env.ZAI_VISION_MODEL || 'glm-4.6v'
-const ZAI_IMAGE_MODEL = process.env.ZAI_IMAGE_MODEL || 'glm-image-1'
+const LEONARDO_BASE_URL = process.env.LEONARDO_BASE_URL || 'https://cloud.leonardo.ai/api/rest/v1'
 
-const buildStylePrompt = (styleName) =>
-  `Analyze this driveway finish for replication. Return STRICT JSON with: base_color (hex), warmth (0-1), texture_strength (0-1), mottling_scale (small/medium/large), joint_visibility (0-1), joint_spacing_m (number), border_present (true/false), border_type (exposed_aggregate/smooth/none), border_contrast (0-1). No extra text. Style name: ${styleName}.`
+const buildRenderPrompt = (styleName) =>
+  `Photorealistic concrete driveway finish based on reference ${styleName}. Match the color, smoothness, subtle mottling, and border detail. Preserve the surrounding environment and lighting.`
 
-const buildTexturePrompt = (profile) =>
-  `Top-down photorealistic concrete driveway texture. Base color: ${profile.base_color}, warmth: ${profile.warmth}. Smooth poured concrete with subtle mottling at ${profile.mottling_scale} scale, texture strength ${profile.texture_strength}. Faint saw-cut joints visible ${profile.joint_visibility}, spaced about ${profile.joint_spacing_m} meters. ${
-    profile.border_present
-      ? `Include a ${profile.border_type} border with contrast ${profile.border_contrast}.`
-      : 'No border.'
-  } Even lighting, no perspective, no objects, tileable texture.`
-
-const parseJsonFromText = (text) => {
-  if (!text) return null
-  try {
-    return JSON.parse(text)
-  } catch (error) {
-    const match = text.match(/\{[\s\S]*\}/)
-    if (!match) return null
-    try {
-      return JSON.parse(match[0])
-    } catch (parseError) {
-      return null
-    }
-  }
+const decodeDataUrl = (dataUrl) => {
+  if (!dataUrl) return null
+  const match = dataUrl.match(/^data:(.+);base64,(.+)$/)
+  if (!match) return null
+  return Buffer.from(match[2], 'base64')
 }
 
-const normalizeProfile = (profile) => ({
-  base_color: profile?.base_color || '#c9d0d6',
-  warmth: typeof profile?.warmth === 'number' ? profile.warmth : 0.5,
-  texture_strength:
-    typeof profile?.texture_strength === 'number' ? profile.texture_strength : 0.3,
-  mottling_scale: profile?.mottling_scale || 'medium',
-  joint_visibility:
-    typeof profile?.joint_visibility === 'number' ? profile.joint_visibility : 0.4,
-  joint_spacing_m:
-    typeof profile?.joint_spacing_m === 'number' ? profile.joint_spacing_m : 2.0,
-  border_present: Boolean(profile?.border_present),
-  border_type: profile?.border_type || 'none',
-  border_contrast:
-    typeof profile?.border_contrast === 'number' ? profile.border_contrast : 0.25,
-})
+const extractGenerationId = (payload) =>
+  payload?.sdGenerationJob?.generationId ||
+  payload?.generationId ||
+  payload?.job?.generationId ||
+  payload?.data?.generationId ||
+  null
+
+const extractImageUrl = (payload) =>
+  payload?.generations_by_pk?.generated_images?.[0]?.url ||
+  payload?.generations_by_pk?.generated_images?.[0]?.imageUrl ||
+  payload?.generated_images?.[0]?.url ||
+  payload?.generated_images?.[0]?.imageUrl ||
+  payload?.data?.generated_images?.[0]?.url ||
+  null
 
 const handler = async (req, res) => {
   if (req.method !== 'POST') {
@@ -57,11 +39,15 @@ const handler = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  if (!process.env.ZAI_API_KEY) {
-    return res.status(501).json({ error: 'ZAI_API_KEY is not configured.' })
+  if (!process.env.LEONARDO_API_KEY) {
+    return res.status(501).json({ error: 'LEONARDO_API_KEY is not configured.' })
   }
 
-  const { referenceStyleUrl, styleName, polygon } = req.body || {}
+  const { siteImageUrl, maskData, referenceStyleUrl, styleName, polygon } = req.body || {}
+
+  if (!siteImageUrl) {
+    return res.status(400).json({ error: 'siteImageUrl is required.' })
+  }
 
   if (!referenceStyleUrl) {
     return res.status(400).json({ error: 'referenceStyleUrl is required.' })
@@ -72,70 +58,109 @@ const handler = async (req, res) => {
   }
 
   try {
-    const visionResponse = await fetch(`${ZAI_BASE_URL}/chat/completions`, {
+    const imageBuffer = decodeDataUrl(siteImageUrl)
+    if (!imageBuffer) {
+      return res.status(400).json({ error: 'siteImageUrl must be a data URL.' })
+    }
+
+    const formData = new FormData()
+    formData.append('init_image', new Blob([imageBuffer]), 'driveway.png')
+
+    const initResponse = await fetch(`${LEONARDO_BASE_URL}/init-image`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${process.env.ZAI_API_KEY}`,
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.LEONARDO_API_KEY}`,
       },
-      body: JSON.stringify({
-        model: ZAI_VISION_MODEL,
-        temperature: 0.2,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: buildStylePrompt(styleName || 'Driveway style') },
-              { type: 'image_url', image_url: { url: referenceStyleUrl } },
-            ],
+      body: formData,
+    })
+
+    const initPayload = await initResponse.json()
+    if (!initResponse.ok) {
+      return res.status(initResponse.status).json({
+        error: initPayload?.error || initPayload?.message || 'Leonardo init image failed.',
+      })
+    }
+
+    const initImageId =
+      initPayload?.uploadInitImage?.id ||
+      initPayload?.init_image_id ||
+      initPayload?.data?.id ||
+      null
+
+    if (!initImageId) {
+      return res.status(502).json({ error: 'Leonardo returned no init image id.' })
+    }
+
+    let maskInitImageId = null
+    if (maskData) {
+      const maskBuffer = decodeDataUrl(maskData)
+      if (maskBuffer) {
+        const maskForm = new FormData()
+        maskForm.append('init_image', new Blob([maskBuffer]), 'mask.png')
+        const maskResponse = await fetch(`${LEONARDO_BASE_URL}/init-image`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${process.env.LEONARDO_API_KEY}`,
           },
-        ],
-      }),
-    })
-
-    const visionPayload = await visionResponse.json()
-    if (!visionResponse.ok) {
-      return res.status(visionResponse.status).json({
-        error: visionPayload?.error?.message || visionPayload?.error || 'Z.ai style analysis failed.',
-      })
+          body: maskForm,
+        })
+        const maskPayload = await maskResponse.json()
+        maskInitImageId =
+          maskPayload?.uploadInitImage?.id ||
+          maskPayload?.init_image_id ||
+          maskPayload?.data?.id ||
+          null
+      }
     }
 
-    const styleText = visionPayload?.choices?.[0]?.message?.content
-    const rawProfile = parseJsonFromText(styleText)
-    const styleProfile = normalizeProfile(rawProfile)
-
-    const textureResponse = await fetch(`${ZAI_BASE_URL}/images/generations`, {
+    const generationResponse = await fetch(`${LEONARDO_BASE_URL}/generations`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${process.env.ZAI_API_KEY}`,
+        Authorization: `Bearer ${process.env.LEONARDO_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: ZAI_IMAGE_MODEL,
-        prompt: buildTexturePrompt(styleProfile),
-        size: '1024x1024',
-        n: 1,
+        prompt: buildRenderPrompt(styleName || 'driveway finish'),
+        init_image_id: initImageId,
+        init_strength: 0.35,
+        num_images: 1,
+        mask: maskInitImageId,
+        guidance_scale: 7,
       }),
     })
 
-    const texturePayload = await textureResponse.json()
-
-    if (!textureResponse.ok) {
-      return res.status(textureResponse.status).json({
-        error:
-          texturePayload?.error?.message || texturePayload?.error || 'Z.ai texture generation failed.',
+    const generationPayload = await generationResponse.json()
+    if (!generationResponse.ok) {
+      return res.status(generationResponse.status).json({
+        error: generationPayload?.error || generationPayload?.message || 'Leonardo generation failed.',
       })
     }
 
-    const output = texturePayload?.data?.[0]
-    const textureImage =
-      output?.b64_json ? `data:image/png;base64,${output.b64_json}` : output?.url || null
+    const generationId = extractGenerationId(generationPayload)
+    if (!generationId) {
+      return res.status(502).json({ error: 'Leonardo returned no generation id.' })
+    }
+
+    let textureImage = null
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      const pollResponse = await fetch(`${LEONARDO_BASE_URL}/generations/${generationId}`, {
+        headers: {
+          Authorization: `Bearer ${process.env.LEONARDO_API_KEY}`,
+        },
+      })
+      const pollPayload = await pollResponse.json()
+      textureImage = extractImageUrl(pollPayload)
+      if (textureImage) {
+        break
+      }
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+    }
 
     if (!textureImage) {
-      return res.status(502).json({ error: 'Z.ai returned no texture image.' })
+      return res.status(502).json({ error: 'Leonardo render did not return an image.' })
     }
 
-    return res.status(200).json({ textureImage, styleProfile })
+    return res.status(200).json({ textureImage })
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Unexpected error.' })
   }
