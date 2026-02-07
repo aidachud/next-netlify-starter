@@ -235,6 +235,19 @@ p {
   gap: 3rem;
 }
 
+.workspace-copy {
+  display: grid;
+  gap: 1rem;
+}
+
+.workspace-hint {
+  background: rgba(201, 145, 95, 0.12);
+  border-radius: 16px;
+  padding: 1rem 1.4rem;
+  font-size: 0.95rem;
+  color: var(--accent-dark);
+}
+
 .workspace-panel {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));

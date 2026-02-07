@@ -39,7 +39,7 @@ const finishes = [
 const featureHighlights = [
   {
     title: 'Photo Upload + Masking',
-    detail: 'Upload a driveway photo and click four corners to map the pour area.',
+    detail: 'Upload a driveway photo and click along the edge to map the pour area.',
   },
   {
     title: 'Finish Library',
@@ -92,12 +92,12 @@ const createAggregatePattern = (width, height) => {
   ctx.fillStyle = 'rgba(255, 255, 255, 0.12)'
   ctx.fillRect(0, 0, texture.width, texture.height)
 
-  const stones = 170
+  const stones = 190
   for (let i = 0; i < stones; i += 1) {
     const radius = 2 + Math.random() * 7
     const x = Math.random() * texture.width
     const y = Math.random() * texture.height
-    const shade = 150 + Math.random() * 75
+    const shade = 140 + Math.random() * 90
     ctx.fillStyle = `rgba(${shade}, ${shade - 12}, ${shade - 25}, 0.55)`
     ctx.beginPath()
     ctx.arc(x, y, radius, 0, Math.PI * 2)
@@ -146,7 +146,7 @@ const createSandPattern = (width, height) => {
   const ctx = texture.getContext('2d')
   ctx.fillStyle = 'rgba(255, 255, 255, 0.08)'
   ctx.fillRect(0, 0, texture.width, texture.height)
-  for (let i = 0; i < 1400; i += 1) {
+  for (let i = 0; i < 1600; i += 1) {
     const size = Math.random() * 2
     const x = Math.random() * texture.width
     const y = Math.random() * texture.height
@@ -204,6 +204,7 @@ export default function Home() {
   const [color, setColor] = useState(finishes[0].tint)
   const [thickness, setThickness] = useState(6)
   const [drivewayPoints, setDrivewayPoints] = useState([])
+  const [isPolygonClosed, setIsPolygonClosed] = useState(false)
 
   const hasImage = Boolean(uploadedImage)
 
@@ -237,7 +238,7 @@ export default function Home() {
       context.save()
       context.beginPath()
 
-      if (drivewayPoints.length === 4) {
+      if (drivewayPoints.length >= 3 && isPolygonClosed) {
         drivewayPoints.forEach((point, index) => {
           if (index === 0) {
             context.moveTo(point.x, point.y)
@@ -287,7 +288,7 @@ export default function Home() {
       const grainContext = grainCanvas.getContext('2d')
       const imageData = grainContext.createImageData(canvas.width, canvas.height)
       for (let i = 0; i < imageData.data.length; i += 4) {
-        const value = 180 + Math.random() * 70
+        const value = 175 + Math.random() * 75
         imageData.data[i] = value
         imageData.data[i + 1] = value
         imageData.data[i + 2] = value
@@ -318,7 +319,7 @@ export default function Home() {
       context.stroke()
       context.setLineDash([])
 
-      if (drivewayPoints.length > 0 && drivewayPoints.length < 4) {
+      if (drivewayPoints.length > 0 && !isPolygonClosed) {
         drivewayPoints.forEach((point, index) => {
           context.beginPath()
           context.fillStyle = 'rgba(255, 255, 255, 0.9)'
@@ -332,9 +333,31 @@ export default function Home() {
           context.fillText(`${index + 1}`, point.x - 6, point.y + 6)
         })
       }
+
+      if (drivewayPoints.length > 1 && !isPolygonClosed) {
+        context.beginPath()
+        context.moveTo(drivewayPoints[0].x, drivewayPoints[0].y)
+        drivewayPoints.slice(1).forEach((point) => {
+          context.lineTo(point.x, point.y)
+        })
+        context.strokeStyle = 'rgba(12, 19, 36, 0.4)'
+        context.lineWidth = 2
+        context.setLineDash([8, 6])
+        context.stroke()
+        context.setLineDash([])
+      }
     }
     image.src = uploadedImage
-  }, [uploadedImage, selectedFinish, opacity, mask, color, thickness, drivewayPoints])
+  }, [
+    uploadedImage,
+    selectedFinish,
+    opacity,
+    mask,
+    color,
+    thickness,
+    drivewayPoints,
+    isPolygonClosed,
+  ])
 
   const handleFile = (event) => {
     const file = event.target.files?.[0]
@@ -343,6 +366,7 @@ export default function Home() {
     reader.onload = (loadEvent) => {
       setUploadedImage(loadEvent.target.result)
       setDrivewayPoints([])
+      setIsPolygonClosed(false)
     }
     reader.readAsDataURL(file)
   }
@@ -351,6 +375,7 @@ export default function Home() {
     setShapePreset(preset.id)
     setMask(preset.settings)
     setDrivewayPoints([])
+    setIsPolygonClosed(false)
   }
 
   const handleMaskChange = (key) => (event) => {
@@ -360,7 +385,7 @@ export default function Home() {
 
   const handleCanvasClick = (event) => {
     const canvas = canvasRef.current
-    if (!canvas || drivewayPoints.length >= 4) return
+    if (!canvas || isPolygonClosed) return
     const rect = canvas.getBoundingClientRect()
     const scaleX = canvas.width / rect.width
     const scaleY = canvas.height / rect.height
@@ -371,6 +396,12 @@ export default function Home() {
 
   const clearPoints = () => {
     setDrivewayPoints([])
+    setIsPolygonClosed(false)
+  }
+
+  const closePolygon = () => {
+    if (drivewayPoints.length < 3) return
+    setIsPolygonClosed(true)
   }
 
   return (
@@ -453,10 +484,14 @@ export default function Home() {
             <p className="eyebrow">Rendering workspace</p>
             <h2>Upload a driveway photo and preview finishes instantly.</h2>
             <p>
-              Load a photo, click four corners to outline the driveway, and adjust finish thickness
-              plus color. The renderer blends real material texture and shading to mimic real-world
-              concrete.
+              Load a photo, click along the driveway edge to build a custom polygon, and close the
+              shape when you are done. Adjust finish thickness plus color for a more realistic
+              material match.
             </p>
+            <div className="workspace-hint">
+              <strong>Tip:</strong> Click to add as many points as needed. Use “Close shape” to lock
+              the surface, or “Reset points” to start over.
+            </div>
           </div>
           <div className="workspace-panel">
             <div className="upload-card">
@@ -483,7 +518,7 @@ export default function Home() {
                 </button>
               </div>
               <div className="upload-footer">
-                <span className="pill">Click to set 4 points</span>
+                <span className="pill">Unlimited points</span>
                 <span className="pill">HD render export</span>
                 <span className="pill">Client share link</span>
               </div>
@@ -493,7 +528,13 @@ export default function Home() {
               <div className="renderer-header">
                 <div>
                   <h3>Live Render</h3>
-                  <p>{hasImage ? 'Mask & finish applied' : 'Upload a photo to begin'}</p>
+                  <p>
+                    {hasImage
+                      ? isPolygonClosed
+                        ? 'Polygon locked · finish applied'
+                        : 'Click to add points · close the shape when ready'
+                      : 'Upload a photo to begin'}
+                  </p>
                 </div>
                 <div className="finish-pill">{selectedFinish.name}</div>
               </div>
@@ -532,7 +573,11 @@ export default function Home() {
                 <div className="control-group">
                   <h4>Finish color</h4>
                   <div className="color-row">
-                    <input type="color" value={color} onChange={(event) => setColor(event.target.value)} />
+                    <input
+                      type="color"
+                      value={color}
+                      onChange={(event) => setColor(event.target.value)}
+                    />
                     <span>{color.toUpperCase()}</span>
                   </div>
                 </div>
@@ -580,6 +625,9 @@ export default function Home() {
                         {preset.label}
                       </button>
                     ))}
+                    <button className="preset-button" type="button" onClick={closePolygon}>
+                      Close shape
+                    </button>
                     <button className="preset-button" type="button" onClick={clearPoints}>
                       Reset points
                     </button>
