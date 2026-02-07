@@ -352,6 +352,7 @@ p {
   width: 100%;
   height: auto;
   display: block;
+  cursor: crosshair;
 }
 
 .canvas-placeholder {
@@ -429,6 +430,26 @@ p {
   margin: 0;
   color: #6b7280;
   font-size: 0.85rem;
+}
+
+.color-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.color-row input[type='color'] {
+  width: 48px;
+  height: 48px;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.color-row span {
+  font-weight: 600;
+  color: var(--accent-dark);
 }
 
 .range-row {

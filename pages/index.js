@@ -39,7 +39,7 @@ const finishes = [
 const featureHighlights = [
   {
     title: 'Photo Upload + Masking',
-    detail: 'Upload a driveway photo and define the pour area with a simple mask.',
+    detail: 'Upload a driveway photo and click four corners to map the pour area.',
   },
   {
     title: 'Finish Library',
@@ -86,19 +86,19 @@ const shapePresets = [
 
 const createAggregatePattern = (width, height) => {
   const texture = document.createElement('canvas')
-  texture.width = 220
-  texture.height = 220
+  texture.width = 240
+  texture.height = 240
   const ctx = texture.getContext('2d')
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.15)'
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.12)'
   ctx.fillRect(0, 0, texture.width, texture.height)
 
-  const stones = 140
+  const stones = 170
   for (let i = 0; i < stones; i += 1) {
-    const radius = 2 + Math.random() * 6
+    const radius = 2 + Math.random() * 7
     const x = Math.random() * texture.width
     const y = Math.random() * texture.height
-    const shade = 160 + Math.random() * 60
-    ctx.fillStyle = `rgba(${shade}, ${shade - 10}, ${shade - 20}, 0.5)`
+    const shade = 150 + Math.random() * 75
+    ctx.fillStyle = `rgba(${shade}, ${shade - 12}, ${shade - 25}, 0.55)`
     ctx.beginPath()
     ctx.arc(x, y, radius, 0, Math.PI * 2)
     ctx.fill()
@@ -116,10 +116,10 @@ const createAggregatePattern = (width, height) => {
 
 const createBroomPattern = (width, height) => {
   const texture = document.createElement('canvas')
-  texture.width = 220
-  texture.height = 220
+  texture.width = 240
+  texture.height = 240
   const ctx = texture.getContext('2d')
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.08)'
   ctx.fillRect(0, 0, texture.width, texture.height)
   ctx.strokeStyle = 'rgba(120, 120, 120, 0.35)'
   ctx.lineWidth = 2
@@ -141,12 +141,12 @@ const createBroomPattern = (width, height) => {
 
 const createSandPattern = (width, height) => {
   const texture = document.createElement('canvas')
-  texture.width = 180
-  texture.height = 180
+  texture.width = 200
+  texture.height = 200
   const ctx = texture.getContext('2d')
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.08)'
   ctx.fillRect(0, 0, texture.width, texture.height)
-  for (let i = 0; i < 1200; i += 1) {
+  for (let i = 0; i < 1400; i += 1) {
     const size = Math.random() * 2
     const x = Math.random() * texture.width
     const y = Math.random() * texture.height
@@ -165,16 +165,16 @@ const createSandPattern = (width, height) => {
 
 const createSlatePattern = (width, height) => {
   const texture = document.createElement('canvas')
-  texture.width = 240
-  texture.height = 240
+  texture.width = 260
+  texture.height = 260
   const ctx = texture.getContext('2d')
   ctx.fillStyle = 'rgba(255, 255, 255, 0.08)'
   ctx.fillRect(0, 0, texture.width, texture.height)
   ctx.strokeStyle = 'rgba(120, 130, 145, 0.45)'
   ctx.lineWidth = 2
-  for (let x = 0; x < texture.width; x += 60) {
-    for (let y = 0; y < texture.height; y += 60) {
-      ctx.strokeRect(x + 2, y + 2, 56, 56)
+  for (let x = 0; x < texture.width; x += 65) {
+    for (let y = 0; y < texture.height; y += 65) {
+      ctx.strokeRect(x + 2, y + 2, 60, 60)
     }
   }
   const pattern = ctx.createPattern(texture, 'repeat')
@@ -198,13 +198,20 @@ export default function Home() {
   const canvasRef = useRef(null)
   const [uploadedImage, setUploadedImage] = useState('/sample-driveway.svg')
   const [selectedFinish, setSelectedFinish] = useState(finishes[0])
-  const [opacity, setOpacity] = useState(0.75)
+  const [opacity, setOpacity] = useState(0.78)
   const [mask, setMask] = useState(maskDefaults)
   const [shapePreset, setShapePreset] = useState('standard')
+  const [color, setColor] = useState(finishes[0].tint)
+  const [thickness, setThickness] = useState(6)
+  const [drivewayPoints, setDrivewayPoints] = useState([])
 
   const hasImage = Boolean(uploadedImage)
 
   const finishOptions = useMemo(() => finishes, [])
+
+  useEffect(() => {
+    setColor(selectedFinish.tint)
+  }, [selectedFinish])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -229,30 +236,43 @@ export default function Home() {
 
       context.save()
       context.beginPath()
-      context.moveTo(centerX - topWidth / 2, topY)
-      context.lineTo(centerX + topWidth / 2, topY)
-      context.bezierCurveTo(
-        centerX + bottomWidth / 2 + curveDepth * 0.2,
-        topY + (bottomY - topY) * 0.35,
-        centerX + bottomWidth / 2 + curveDepth * 0.2,
-        bottomY - curveDepth * 0.2,
-        centerX + bottomWidth / 2,
-        bottomY
-      )
-      context.lineTo(centerX - bottomWidth / 2, bottomY)
-      context.bezierCurveTo(
-        centerX - bottomWidth / 2 - curveDepth * 0.2,
-        bottomY - curveDepth * 0.2,
-        centerX - bottomWidth / 2 - curveDepth * 0.2,
-        topY + (bottomY - topY) * 0.35,
-        centerX - topWidth / 2,
-        topY
-      )
-      context.closePath()
+
+      if (drivewayPoints.length === 4) {
+        drivewayPoints.forEach((point, index) => {
+          if (index === 0) {
+            context.moveTo(point.x, point.y)
+          } else {
+            context.lineTo(point.x, point.y)
+          }
+        })
+        context.closePath()
+      } else {
+        context.moveTo(centerX - topWidth / 2, topY)
+        context.lineTo(centerX + topWidth / 2, topY)
+        context.bezierCurveTo(
+          centerX + bottomWidth / 2 + curveDepth * 0.2,
+          topY + (bottomY - topY) * 0.35,
+          centerX + bottomWidth / 2 + curveDepth * 0.2,
+          bottomY - curveDepth * 0.2,
+          centerX + bottomWidth / 2,
+          bottomY
+        )
+        context.lineTo(centerX - bottomWidth / 2, bottomY)
+        context.bezierCurveTo(
+          centerX - bottomWidth / 2 - curveDepth * 0.2,
+          bottomY - curveDepth * 0.2,
+          centerX - bottomWidth / 2 - curveDepth * 0.2,
+          topY + (bottomY - topY) * 0.35,
+          centerX - topWidth / 2,
+          topY
+        )
+        context.closePath()
+      }
+
       context.clip()
 
       context.globalAlpha = opacity
-      context.fillStyle = selectedFinish.tint
+      context.fillStyle = color
       context.globalCompositeOperation = 'multiply'
       context.fillRect(0, 0, canvas.width, canvas.height)
 
@@ -276,15 +296,15 @@ export default function Home() {
       grainContext.putImageData(imageData, 0, 0)
 
       context.globalCompositeOperation = 'soft-light'
-      context.globalAlpha = 0.5
+      context.globalAlpha = 0.45
       context.drawImage(grainCanvas, 0, 0)
 
       const shadowGradient = context.createLinearGradient(0, topY, 0, bottomY)
       shadowGradient.addColorStop(0, 'rgba(0, 0, 0, 0.05)')
-      shadowGradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.12)')
-      shadowGradient.addColorStop(1, 'rgba(0, 0, 0, 0.2)')
+      shadowGradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.14)')
+      shadowGradient.addColorStop(1, 'rgba(0, 0, 0, 0.24)')
       context.globalCompositeOperation = 'multiply'
-      context.globalAlpha = 0.8
+      context.globalAlpha = 0.75
       context.fillStyle = shadowGradient
       context.fillRect(0, 0, canvas.width, canvas.height)
 
@@ -292,14 +312,29 @@ export default function Home() {
 
       context.globalCompositeOperation = 'source-over'
       context.globalAlpha = 1
-      context.strokeStyle = 'rgba(255, 255, 255, 0.7)'
-      context.lineWidth = 3
+      context.strokeStyle = 'rgba(255, 255, 255, 0.65)'
+      context.lineWidth = thickness
       context.setLineDash([14, 10])
       context.stroke()
       context.setLineDash([])
+
+      if (drivewayPoints.length > 0 && drivewayPoints.length < 4) {
+        drivewayPoints.forEach((point, index) => {
+          context.beginPath()
+          context.fillStyle = 'rgba(255, 255, 255, 0.9)'
+          context.strokeStyle = 'rgba(12, 19, 36, 0.4)'
+          context.lineWidth = 2
+          context.arc(point.x, point.y, 8, 0, Math.PI * 2)
+          context.fill()
+          context.stroke()
+          context.fillStyle = 'rgba(12, 19, 36, 0.75)'
+          context.font = 'bold 20px Inter'
+          context.fillText(`${index + 1}`, point.x - 6, point.y + 6)
+        })
+      }
     }
     image.src = uploadedImage
-  }, [uploadedImage, selectedFinish, opacity, mask])
+  }, [uploadedImage, selectedFinish, opacity, mask, color, thickness, drivewayPoints])
 
   const handleFile = (event) => {
     const file = event.target.files?.[0]
@@ -307,6 +342,7 @@ export default function Home() {
     const reader = new FileReader()
     reader.onload = (loadEvent) => {
       setUploadedImage(loadEvent.target.result)
+      setDrivewayPoints([])
     }
     reader.readAsDataURL(file)
   }
@@ -314,11 +350,27 @@ export default function Home() {
   const handlePresetChange = (preset) => {
     setShapePreset(preset.id)
     setMask(preset.settings)
+    setDrivewayPoints([])
   }
 
   const handleMaskChange = (key) => (event) => {
     const value = Number(event.target.value)
     setMask((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const handleCanvasClick = (event) => {
+    const canvas = canvasRef.current
+    if (!canvas || drivewayPoints.length >= 4) return
+    const rect = canvas.getBoundingClientRect()
+    const scaleX = canvas.width / rect.width
+    const scaleY = canvas.height / rect.height
+    const x = (event.clientX - rect.left) * scaleX
+    const y = (event.clientY - rect.top) * scaleY
+    setDrivewayPoints((prev) => [...prev, { x, y }])
+  }
+
+  const clearPoints = () => {
+    setDrivewayPoints([])
   }
 
   return (
@@ -352,7 +404,7 @@ export default function Home() {
               <h1>Render stunning driveway concepts from a single photo.</h1>
               <p className="hero-subtitle">
                 Give clients a professional, interactive preview of exposed aggregate, stamped
-                slate, broom finishes, and more. Upload a driveway photo, mask the pour area, and
+                slate, broom finishes, and more. Upload a driveway photo, define the pour area, and
                 generate refined visual concepts in minutes.
               </p>
               <div className="hero-cta">
@@ -401,9 +453,9 @@ export default function Home() {
             <p className="eyebrow">Rendering workspace</p>
             <h2>Upload a driveway photo and preview finishes instantly.</h2>
             <p>
-              This demo lets you load a real photo, draw a simple driveway mask, and apply custom
-              finishes. The renderer blends color, texture, and grain so clients can visualize
-              exactly what their driveway could become.
+              Load a photo, click four corners to outline the driveway, and adjust finish thickness
+              plus color. The renderer blends real material texture and shading to mimic real-world
+              concrete.
             </p>
           </div>
           <div className="workspace-panel">
@@ -431,7 +483,7 @@ export default function Home() {
                 </button>
               </div>
               <div className="upload-footer">
-                <span className="pill">Edge mask controls</span>
+                <span className="pill">Click to set 4 points</span>
                 <span className="pill">HD render export</span>
                 <span className="pill">Client share link</span>
               </div>
@@ -447,7 +499,7 @@ export default function Home() {
               </div>
               <div className="canvas-frame">
                 {hasImage ? (
-                  <canvas ref={canvasRef} className="render-canvas" />
+                  <canvas ref={canvasRef} className="render-canvas" onClick={handleCanvasClick} />
                 ) : (
                   <div className="canvas-placeholder">
                     <p>Load a driveway photo to see the finish preview.</p>
@@ -478,6 +530,14 @@ export default function Home() {
                 </div>
 
                 <div className="control-group">
+                  <h4>Finish color</h4>
+                  <div className="color-row">
+                    <input type="color" value={color} onChange={(event) => setColor(event.target.value)} />
+                    <span>{color.toUpperCase()}</span>
+                  </div>
+                </div>
+
+                <div className="control-group">
                   <h4>Finish opacity</h4>
                   <div className="range-row">
                     <input
@@ -489,6 +549,21 @@ export default function Home() {
                       onChange={(event) => setOpacity(Number(event.target.value))}
                     />
                     <span>{Math.round(opacity * 100)}%</span>
+                  </div>
+                </div>
+
+                <div className="control-group">
+                  <h4>Driveway thickness</h4>
+                  <div className="range-row">
+                    <input
+                      type="range"
+                      min="2"
+                      max="12"
+                      step="1"
+                      value={thickness}
+                      onChange={(event) => setThickness(Number(event.target.value))}
+                    />
+                    <span>{thickness} px</span>
                   </div>
                 </div>
 
@@ -505,6 +580,9 @@ export default function Home() {
                         {preset.label}
                       </button>
                     ))}
+                    <button className="preset-button" type="button" onClick={clearPoints}>
+                      Reset points
+                    </button>
                   </div>
                 </div>
 
