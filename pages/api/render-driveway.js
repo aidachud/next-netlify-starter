@@ -65,6 +65,7 @@ const handler = async (req, res) => {
 
     const formData = new FormData()
     formData.append('init_image', new Blob([imageBuffer]), 'driveway.png')
+    formData.append('extension', 'png')
 
     const initResponse = await fetch(`${LEONARDO_BASE_URL}/init-image`, {
       method: 'POST',
@@ -97,6 +98,7 @@ const handler = async (req, res) => {
       if (maskBuffer) {
         const maskForm = new FormData()
         maskForm.append('init_image', new Blob([maskBuffer]), 'mask.png')
+        maskForm.append('extension', 'png')
         const maskResponse = await fetch(`${LEONARDO_BASE_URL}/init-image`, {
           method: 'POST',
           headers: {
