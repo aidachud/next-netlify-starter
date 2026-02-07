@@ -3,6 +3,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 const finishes = [
   {
+    id: 'light-stone',
+    name: 'Light Stone Concrete',
+    description: 'Cool grey surface inspired by modern driveway pours.',
+    tint: '#c5ced6',
+    grain: 0.2,
+    pattern: 'smooth',
+  },
+  {
     id: 'smooth',
     name: 'Smooth Concrete',
     description: 'Clean, solid surface inspired by modern concrete pours.',
@@ -197,16 +205,17 @@ const createSlatePattern = (width, height) => {
 
 const createSmoothPattern = (width, height) => {
   const texture = document.createElement('canvas')
-  texture.width = 200
-  texture.height = 200
+  texture.width = 240
+  texture.height = 240
   const ctx = texture.getContext('2d')
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.06)'
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.08)'
   ctx.fillRect(0, 0, texture.width, texture.height)
-  for (let i = 0; i < 800; i += 1) {
-    const size = Math.random() * 1.6
+  for (let i = 0; i < 1200; i += 1) {
+    const size = Math.random() * 1.8
     const x = Math.random() * texture.width
     const y = Math.random() * texture.height
-    ctx.fillStyle = `rgba(170, 180, 190, ${0.12 + Math.random() * 0.2})`
+    const shade = 185 + Math.random() * 40
+    ctx.fillStyle = `rgba(${shade}, ${shade + 8}, ${shade + 14}, ${0.18 + Math.random() * 0.2})`
     ctx.fillRect(x, y, size, size)
   }
   const pattern = ctx.createPattern(texture, 'repeat')
@@ -267,10 +276,9 @@ export default function Home() {
       const curveDepth = (mask.curvature / 100) * canvas.height
       const centerX = canvas.width / 2
 
-      context.save()
-      context.beginPath()
-
       if (drivewayPoints.length >= 3 && isPolygonClosed) {
+        context.save()
+        context.beginPath()
         drivewayPoints.forEach((point, index) => {
           if (index === 0) {
             context.moveTo(point.x, point.y)
@@ -279,77 +287,55 @@ export default function Home() {
           }
         })
         context.closePath()
-      } else {
-        context.moveTo(centerX - topWidth / 2, topY)
-        context.lineTo(centerX + topWidth / 2, topY)
-        context.bezierCurveTo(
-          centerX + bottomWidth / 2 + curveDepth * 0.2,
-          topY + (bottomY - topY) * 0.35,
-          centerX + bottomWidth / 2 + curveDepth * 0.2,
-          bottomY - curveDepth * 0.2,
-          centerX + bottomWidth / 2,
-          bottomY
-        )
-        context.lineTo(centerX - bottomWidth / 2, bottomY)
-        context.bezierCurveTo(
-          centerX - bottomWidth / 2 - curveDepth * 0.2,
-          bottomY - curveDepth * 0.2,
-          centerX - bottomWidth / 2 - curveDepth * 0.2,
-          topY + (bottomY - topY) * 0.35,
-          centerX - topWidth / 2,
-          topY
-        )
-        context.closePath()
+        context.clip()
+
+        context.globalAlpha = 1
+        context.fillStyle = color
+        context.globalCompositeOperation = 'source-over'
+        context.fillRect(0, 0, canvas.width, canvas.height)
+
+        const patternCanvas = createPatternCanvas(selectedFinish.pattern, canvas.width, canvas.height)
+        context.globalCompositeOperation = 'multiply'
+        context.globalAlpha = 0.9
+        context.drawImage(patternCanvas, 0, 0)
+
+        const grainCanvas = document.createElement('canvas')
+        grainCanvas.width = canvas.width
+        grainCanvas.height = canvas.height
+        const grainContext = grainCanvas.getContext('2d')
+        const imageData = grainContext.createImageData(canvas.width, canvas.height)
+        for (let i = 0; i < imageData.data.length; i += 4) {
+          const value = 175 + Math.random() * 75
+          imageData.data[i] = value
+          imageData.data[i + 1] = value
+          imageData.data[i + 2] = value
+          imageData.data[i + 3] = 255 * selectedFinish.grain
+        }
+        grainContext.putImageData(imageData, 0, 0)
+
+        context.globalCompositeOperation = 'soft-light'
+        context.globalAlpha = 0.5
+        context.drawImage(grainCanvas, 0, 0)
+
+        const shadowGradient = context.createLinearGradient(0, topY, 0, bottomY)
+        shadowGradient.addColorStop(0, 'rgba(0, 0, 0, 0.08)')
+        shadowGradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.18)')
+        shadowGradient.addColorStop(1, 'rgba(0, 0, 0, 0.28)')
+        context.globalCompositeOperation = 'multiply'
+        context.globalAlpha = 0.85
+        context.fillStyle = shadowGradient
+        context.fillRect(0, 0, canvas.width, canvas.height)
+
+        context.restore()
+
+        context.globalCompositeOperation = 'source-over'
+        context.globalAlpha = 1
+        context.strokeStyle = 'rgba(255, 255, 255, 0.65)'
+        context.lineWidth = thickness
+        context.setLineDash([14, 10])
+        context.stroke()
+        context.setLineDash([])
       }
-
-      context.clip()
-
-      context.globalAlpha = 1
-      context.fillStyle = color
-      context.globalCompositeOperation = 'source-over'
-      context.fillRect(0, 0, canvas.width, canvas.height)
-
-      const patternCanvas = createPatternCanvas(selectedFinish.pattern, canvas.width, canvas.height)
-      context.globalCompositeOperation = 'multiply'
-      context.globalAlpha = 0.9
-      context.drawImage(patternCanvas, 0, 0)
-
-      const grainCanvas = document.createElement('canvas')
-      grainCanvas.width = canvas.width
-      grainCanvas.height = canvas.height
-      const grainContext = grainCanvas.getContext('2d')
-      const imageData = grainContext.createImageData(canvas.width, canvas.height)
-      for (let i = 0; i < imageData.data.length; i += 4) {
-        const value = 175 + Math.random() * 75
-        imageData.data[i] = value
-        imageData.data[i + 1] = value
-        imageData.data[i + 2] = value
-        imageData.data[i + 3] = 255 * selectedFinish.grain
-      }
-      grainContext.putImageData(imageData, 0, 0)
-
-      context.globalCompositeOperation = 'soft-light'
-      context.globalAlpha = 0.5
-      context.drawImage(grainCanvas, 0, 0)
-
-      const shadowGradient = context.createLinearGradient(0, topY, 0, bottomY)
-      shadowGradient.addColorStop(0, 'rgba(0, 0, 0, 0.08)')
-      shadowGradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.18)')
-      shadowGradient.addColorStop(1, 'rgba(0, 0, 0, 0.28)')
-      context.globalCompositeOperation = 'multiply'
-      context.globalAlpha = 0.85
-      context.fillStyle = shadowGradient
-      context.fillRect(0, 0, canvas.width, canvas.height)
-
-      context.restore()
-
-      context.globalCompositeOperation = 'source-over'
-      context.globalAlpha = 1
-      context.strokeStyle = 'rgba(255, 255, 255, 0.65)'
-      context.lineWidth = thickness
-      context.setLineDash([14, 10])
-      context.stroke()
-      context.setLineDash([])
 
       if (drivewayPoints.length > 0 && !isPolygonClosed) {
         drivewayPoints.forEach((point, index) => {
@@ -375,6 +361,35 @@ export default function Home() {
         context.strokeStyle = 'rgba(12, 19, 36, 0.4)'
         context.lineWidth = 2
         context.setLineDash([8, 6])
+        context.stroke()
+        context.setLineDash([])
+      }
+
+      if (drivewayPoints.length < 3 || !isPolygonClosed) {
+        context.beginPath()
+        context.moveTo(centerX - topWidth / 2, topY)
+        context.lineTo(centerX + topWidth / 2, topY)
+        context.bezierCurveTo(
+          centerX + bottomWidth / 2 + curveDepth * 0.2,
+          topY + (bottomY - topY) * 0.35,
+          centerX + bottomWidth / 2 + curveDepth * 0.2,
+          bottomY - curveDepth * 0.2,
+          centerX + bottomWidth / 2,
+          bottomY
+        )
+        context.lineTo(centerX - bottomWidth / 2, bottomY)
+        context.bezierCurveTo(
+          centerX - bottomWidth / 2 - curveDepth * 0.2,
+          bottomY - curveDepth * 0.2,
+          centerX - bottomWidth / 2 - curveDepth * 0.2,
+          topY + (bottomY - topY) * 0.35,
+          centerX - topWidth / 2,
+          topY
+        )
+        context.closePath()
+        context.strokeStyle = 'rgba(12, 19, 36, 0.08)'
+        context.lineWidth = 2
+        context.setLineDash([6, 6])
         context.stroke()
         context.setLineDash([])
       }
@@ -535,7 +550,11 @@ export default function Home() {
                   onChange={handleFile}
                   hidden
                 />
-                <button className="ghost-button" type="button" onClick={() => setUploadedImage('/sample-driveway.svg')}>
+                <button
+                  className="ghost-button"
+                  type="button"
+                  onClick={() => setUploadedImage('/sample-driveway.svg')}
+                >
                   Use Sample Driveway
                 </button>
               </div>

@@ -428,6 +428,10 @@ p {
   background: linear-gradient(135deg, #cbd5e1, #94a3b8);
 }
 
+.finish-card.light-stone .finish-swatch {
+  background: linear-gradient(135deg, #d2dae2, #b7c1cb);
+}
+
 .finish-card.smooth .finish-swatch {
   background: linear-gradient(135deg, #d7dee5, #b9c3cd);
 }
@@ -568,6 +572,10 @@ input[type='range'] {
   height: 70px;
   border-radius: 18px;
   background: linear-gradient(135deg, #cbd5e1, #94a3b8);
+}
+
+.design-card.light-stone .design-swatch {
+  background: linear-gradient(135deg, #d2dae2, #b7c1cb);
 }
 
 .design-card.smooth .design-swatch {
