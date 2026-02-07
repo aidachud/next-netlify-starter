@@ -85,6 +85,8 @@ export default function Home() {
   const [isRendering, setIsRendering] = useState(false)
   const [renderStage, setRenderStage] = useState('')
   const [renderError, setRenderError] = useState('')
+  const [selectedReference, setSelectedReference] = useState(referenceImage)
+  const [referenceLabel, setReferenceLabel] = useState('Reference Driveway')
 
   const hasImage = Boolean(uploadedImage)
 
@@ -144,6 +146,9 @@ export default function Home() {
     try {
       const imageData = await getImageDataUrl(uploadedImage)
       const maskData = createMaskDataUrl(canvas, drivewayPoints)
+      const referenceData = selectedReference
+        ? await getImageDataUrl(selectedReference)
+        : null
       const normalizedPoints = drivewayPoints.map((point) => [
         point.x / canvas.width,
         point.y / canvas.height,
@@ -155,8 +160,8 @@ export default function Home() {
           siteImageUrl: imageData,
           maskData,
           polygon: normalizedPoints,
-          referenceStyleUrl: referenceImage,
-          styleName: 'Reference Driveway',
+          referenceImageUrl: referenceData,
+          styleName: referenceLabel,
         }),
       })
       const payload = await response.json()
@@ -338,6 +343,19 @@ export default function Home() {
       setIsPolygonClosed(false)
       setRenderedTexture(null)
       setRenderError('')
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleReferenceFile = (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (loadEvent) => {
+      setSelectedReference(loadEvent.target.result)
+      setReferenceLabel(file.name || 'Custom reference')
+      setRenderError('')
+      setRenderedTexture(null)
     }
     reader.readAsDataURL(file)
   }
@@ -541,14 +559,38 @@ export default function Home() {
                   <div className="reference-card active">
                     <div
                       className="reference-preview"
-                      style={{ backgroundImage: `url(${referenceImage})` }}
+                      style={{ backgroundImage: `url(${selectedReference})` }}
                     />
                     <div>
-                      <p className="finish-title">Modern light concrete</p>
+                      <p className="finish-title">{referenceLabel}</p>
                       <p className="finish-description">
-                        Using the provided driveway photo as the render reference.
+                        Select a driveway reference image to drive the render style.
                       </p>
                     </div>
+                  </div>
+                  <div className="reference-actions">
+                    <label className="primary-button" htmlFor="reference-upload">
+                      Upload Reference
+                    </label>
+                    <input
+                      id="reference-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleReferenceFile}
+                      hidden
+                    />
+                    <button
+                      className="ghost-button"
+                      type="button"
+                      onClick={() => {
+                        setSelectedReference(referenceImage)
+                        setReferenceLabel('Reference Driveway')
+                        setRenderedTexture(null)
+                        setRenderError('')
+                      }}
+                    >
+                      Use Sample Reference
+                    </button>
                   </div>
                 </div>
 
