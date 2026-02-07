@@ -92,6 +92,8 @@ const handler = async (req, res) => {
       return res.status(502).json({ error: 'Leonardo returned no init image id.' })
     }
 
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+
     const generationPayloadBody = {
       prompt: buildRenderPrompt(styleName || 'driveway finish'),
       init_image_id: initImageId,
@@ -100,19 +102,37 @@ const handler = async (req, res) => {
       guidance_scale: 7,
     }
 
-    const generationResponse = await fetch(`${LEONARDO_BASE_URL}/generations`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.LEONARDO_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(generationPayloadBody),
-    })
+    let generationPayload = null
+    let generationResponse = null
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      generationResponse = await fetch(`${LEONARDO_BASE_URL}/generations`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.LEONARDO_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(generationPayloadBody),
+      })
+      generationPayload = await generationResponse.json()
+      if (generationResponse.ok) {
+        break
+      }
 
-    const generationPayload = await generationResponse.json()
-    if (!generationResponse.ok) {
-      return res.status(generationResponse.status).json({
-        error: generationPayload?.error || generationPayload?.message || 'Leonardo generation failed.',
+      const errorMessage = generationPayload?.error || generationPayload?.message || ''
+      if (!errorMessage.toLowerCase().includes('init image unavailable')) {
+        return res.status(generationResponse.status).json({
+          error: errorMessage || 'Leonardo generation failed.',
+        })
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+    }
+
+    if (!generationResponse?.ok) {
+      return res.status(generationResponse?.status || 502).json({
+        error:
+          generationPayload?.error ||
+          generationPayload?.message ||
+          'Leonardo generation failed after retries.',
       })
     }
 
