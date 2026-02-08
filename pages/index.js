@@ -1,78 +1,6 @@
 import Head from 'next/head'
 import { useEffect, useRef, useState } from 'react'
 
-const finishes = [
-  {
-    id: 'light-stone',
-    name: 'Light Stone Concrete',
-    description: 'Cool grey surface inspired by modern driveway pours.',
-    tint: '#c5ced6',
-    grain: 0.2,
-    pattern: 'smooth',
-  },
-  {
-    id: 'smooth',
-    name: 'Smooth Concrete',
-    description: 'Clean, solid surface inspired by modern concrete pours.',
-    tint: '#c9d0d6',
-    grain: 0.18,
-    pattern: 'smooth',
-  },
-  {
-    id: 'exposed',
-    name: 'Exposed Aggregate',
-    description: 'Stone-forward sparkle with premium traction and depth.',
-    tint: '#b7a995',
-    grain: 0.6,
-    pattern: 'aggregate',
-  },
-  {
-    id: 'broom',
-    name: 'Modern Broom Finish',
-    description: 'Clean directional texture with crisp contemporary lines.',
-    tint: '#d4d2cd',
-    grain: 0.25,
-    pattern: 'broom',
-  },
-  {
-    id: 'sand',
-    name: 'Warm Sand Wash',
-    description: 'Soft, coastal-inspired tone with subtle movement.',
-    tint: '#d2c0a7',
-    grain: 0.35,
-    pattern: 'sand',
-  },
-  {
-    id: 'slate',
-    name: 'Stamped Slate',
-    description: 'Architectural slate pattern for a refined statement.',
-    tint: '#b8c2c9',
-    grain: 0.3,
-    pattern: 'slate',
-  },
-]
-
-const featureHighlights = [
-  {
-    title: 'Photo Upload + Masking',
-    detail: 'Upload a driveway photo and click along the edge to map the pour area.',
-  },
-  {
-    title: 'Finish Library',
-    detail: 'Swap between aggregates, colors, and textures with instant previewing.',
-  },
-  {
-    title: 'Client-Ready Output',
-    detail: 'Export polished renders or share a private link for approvals.',
-  },
-]
-
-const stats = [
-  { label: 'Finish combinations', value: '40+' },
-  { label: 'Average mockup time', value: '< 4 min' },
-  { label: 'Approval speed', value: '2.8x faster' },
-]
-
 const referenceImage = '/reference-driveway.svg'
 
 export default function Home() {
@@ -204,97 +132,34 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>Driveway Design Studio</title>
+        <title>Driveway Render Studio</title>
         <meta
           name="description"
-          content="Upload a driveway photo and render premium concrete finishes with a stunning, client-ready experience."
+          content="Render driveway designs from a reference finish in a single, focused workspace."
         />
       </Head>
-      <div className="page">
-        <header className="hero">
-          <nav className="nav">
-            <div className="logo">
-              <span className="logo-mark" />
-              Driveway Design Studio
-            </div>
-            <div className="nav-actions">
-              <button className="ghost-button" type="button">
-                Client Gallery
-              </button>
-              <button className="primary-button" type="button">
-                Book a Demo
-              </button>
-            </div>
-          </nav>
-          <div className="hero-grid">
-            <div className="hero-copy">
-              <p className="eyebrow">Luxury concrete visualization</p>
-              <h1>Render stunning driveway concepts from a single photo.</h1>
-              <p className="hero-subtitle">
-                Give clients a professional, interactive preview of exposed aggregate, stamped
-                slate, broom finishes, and more. Upload a driveway photo, define the pour area, and
-                generate refined visual concepts in minutes.
-              </p>
-              <div className="hero-cta">
-                <button className="primary-button" type="button">
-                  Start a Visualization
-                </button>
-                <button className="ghost-button" type="button">
-                  View Finish Library
-                </button>
-              </div>
-              <div className="metrics">
-                {stats.map((metric) => (
-                  <div key={metric.label} className="metric">
-                    <p className="metric-value">{metric.value}</p>
-                    <p className="metric-label">{metric.label}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="hero-visual">
-              <div className="visual-card">
-                <div className="visual-header">
-                  <span>Before</span>
-                  <span className="pill">Raw Base</span>
-                </div>
-                <div className="visual-image" />
-              </div>
-              <div className="visual-card accent">
-                <div className="visual-header">
-                  <span>After</span>
-                  <span className="pill">Live Rendering</span>
-                </div>
-                <div className="visual-image finished" />
-                <div className="visual-controls">
-                  <div className="control" />
-                  <div className="control" />
-                  <div className="control" />
-                </div>
-              </div>
-            </div>
+      <div className="page studio-page">
+        <header className="studio-header">
+          <div>
+            <p className="studio-eyebrow">Driveway Render Studio</p>
+            <h1>Render a driveway finish from your reference image.</h1>
+            <p className="studio-subtitle">
+              Upload a site photo, select a reference driveway finish, and generate a photoreal
+              render while keeping everything else intact.
+            </p>
+          </div>
+          <div className="studio-status">
+            <span className={`status-pill ${isRendering ? 'active' : ''}`}>{statusMessage}</span>
           </div>
         </header>
 
-        <section className="section workspace">
-          <div className="workspace-copy">
-            <p className="eyebrow">Rendering workspace</p>
-            <h2>Upload a driveway photo and preview finishes instantly.</h2>
-            <p>
-              Load a site photo, pick a reference driveway finish, and render a photoreal update
-              that keeps everything else in the scene intact.
-            </p>
-            <div className="workspace-hint">
-              <strong>Tip:</strong> Choose a clean reference photo with the exact finish you want to
-              match.
-            </div>
-          </div>
-            <div className="workspace-panel">
-              <div className="upload-card">
+        <main className="studio-shell">
+          <section className="studio-panel">
+            <div className="upload-card">
               <div className="upload-dropzone">
                 <div className="upload-icon" />
                 <div>
-                  <p className="upload-title">Drop driveway photo here</p>
+                  <p className="upload-title">Upload site photo</p>
                   <p className="upload-subtitle">JPEG, PNG, or HEIC up to 20MB</p>
                 </div>
               </div>
@@ -310,170 +175,89 @@ export default function Home() {
                   hidden
                 />
                 <button
-                  className="ghost-button"
+                  className="ghost-button light"
                   type="button"
                   onClick={() => setUploadedImage('/sample-driveway.svg')}
                 >
-                  Use Sample Driveway
+                  Use Sample
                 </button>
-              </div>
-              <div className="upload-footer">
-                <span className="pill">Unlimited points</span>
-                <span className="pill">HD render export</span>
-                <span className="pill">Client share link</span>
               </div>
             </div>
 
-              <div className="renderer">
-                <div className="renderer-header">
-                  <div>
-                    <h3>Live Render</h3>
-                    <p>{statusMessage}</p>
-                  </div>
-                  <div className="finish-pill">Reference driveway</div>
-                </div>
-                <div className="canvas-frame">
-                  {hasImage ? (
-                    <canvas ref={canvasRef} className="render-canvas" />
-                  ) : (
-                  <div className="canvas-placeholder">
-                    <p>Load a driveway photo to see the finish preview.</p>
-                  </div>
-                )}
-              </div>
-              <div className="canvas-actions">
-                <button
-                  className="primary-button render-button"
-                  type="button"
-                  onClick={requestOpenAIRender}
-                  disabled={isRendering}
-                >
-                  Render driveway
-                </button>
-              </div>
-              {renderError ? <p className="render-error">{renderError}</p> : null}
-              <div className="controls">
-                <div className="control-group">
-                  <h4>Reference driveway</h4>
-                  <div className="reference-card active">
-                    <div
-                      className="reference-preview"
-                      style={{ backgroundImage: `url(${selectedReference})` }}
-                    />
-                    <div>
-                      <p className="finish-title">{referenceLabel}</p>
-                      <p className="finish-description">
-                        Select a driveway reference image to drive the render style.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="reference-actions">
-                    <label className="primary-button" htmlFor="reference-upload">
-                      Upload Reference
-                    </label>
-                    <input
-                      id="reference-upload"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleReferenceFile}
-                      hidden
-                    />
-                    <button
-                      className="ghost-button"
-                      type="button"
-                      onClick={() => {
-                        setSelectedReference(referenceImage)
-                        setReferenceLabel('Reference Driveway')
-                        setRenderedTexture(null)
-                        setRenderError('')
-                      }}
-                    >
-                      Use Sample Reference
-                    </button>
-                  </div>
-                </div>
-
-                <div className="control-group">
-                  <h4>Render guidance</h4>
+            <div className="control-group">
+              <h4>Reference driveway</h4>
+              <div className="reference-card active">
+                <div
+                  className="reference-preview"
+                  style={{ backgroundImage: `url(${selectedReference})` }}
+                />
+                <div>
+                  <p className="finish-title">{referenceLabel}</p>
                   <p className="finish-description">
-                    The AI keeps the uploaded photo intact and applies the reference driveway style
-                    across the scene.
+                    Choose the driveway finish you want the AI to match.
                   </p>
                 </div>
               </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="section designs">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Finish library</p>
-              <h2>Offer a curated menu of premium looks.</h2>
-              <p>
-                Build a signature catalog of colors, aggregates, borders, and sealers. Let clients
-                compare options side-by-side for confident approvals.
-              </p>
-            </div>
-            <button className="ghost-button" type="button">
-              Manage Library
-            </button>
-          </div>
-          <div className="design-grid">
-            {finishes.map((option) => (
-              <div key={option.name} className={`design-card ${option.id}`}>
-                <div className="design-swatch" />
-                <h3>{option.name}</h3>
-                <p>{option.description}</p>
-                <button className="text-button" type="button">
-                  Preview on driveway →
+              <div className="reference-actions">
+                <label className="primary-button" htmlFor="reference-upload">
+                  Upload Reference
+                </label>
+                <input
+                  id="reference-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleReferenceFile}
+                  hidden
+                />
+                <button
+                  className="ghost-button light"
+                  type="button"
+                  onClick={() => {
+                    setSelectedReference(referenceImage)
+                    setReferenceLabel('Reference Driveway')
+                    setRenderedTexture(null)
+                    setRenderError('')
+                  }}
+                >
+                  Use Sample
                 </button>
               </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="section timeline">
-          <div className="timeline-card">
-            <div>
-              <p className="eyebrow">How it works</p>
-              <h2>From photo to approval in three steps.</h2>
             </div>
-            <div className="timeline-steps">
-              {featureHighlights.map((step, index) => (
-                <div key={step.title} className="timeline-step">
-                  <div className="step-index">0{index + 1}</div>
-                  <div>
-                    <h3>{step.title}</h3>
-                    <p>{step.detail}</p>
-                  </div>
+
+            <div className="render-actions">
+              <button
+                className="primary-button render-button"
+                type="button"
+                onClick={requestOpenAIRender}
+                disabled={isRendering}
+              >
+                Render driveway
+              </button>
+              {renderError ? <p className="render-error">{renderError}</p> : null}
+            </div>
+          </section>
+
+          <section className="studio-preview">
+            <div className="renderer">
+              <div className="renderer-header">
+                <div>
+                  <h3>Live Render</h3>
+                  <p>{statusMessage}</p>
                 </div>
-              ))}
+                <div className="finish-pill">Reference render</div>
+              </div>
+              <div className="canvas-frame">
+                {hasImage ? (
+                  <canvas ref={canvasRef} className="render-canvas" />
+                ) : (
+                  <div className="canvas-placeholder">
+                    <p>Load a driveway photo to see the render.</p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </section>
-
-        <section className="section cta">
-          <div className="cta-card">
-            <div>
-              <p className="eyebrow">Launch-ready experience</p>
-              <h2>Deliver a stunning, professional client journey.</h2>
-              <p>
-                Your clients expect the same caliber of presentation as the finished driveway.
-                Elevate every bid with polished visuals, instant comparisons, and effortless
-                approvals.
-              </p>
-            </div>
-            <div className="cta-actions">
-              <button className="primary-button" type="button">
-                Schedule a Walkthrough
-              </button>
-              <button className="ghost-button" type="button">
-                Download Deck
-              </button>
-            </div>
-          </div>
-        </section>
+          </section>
+        </main>
       </div>
     </>
   )
